@@ -7,7 +7,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design"/>
+        <PackageReference Include="Scalar.AspNetCore" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\AuthService.Contracts\AuthService.Contracts.csproj" />
+      <ProjectReference Include="..\AuthService.Core\AuthService.Core.csproj" />
+      <ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
+      <ProjectReference Include="..\AuthService.Infrastructure.Postgres\AuthService.Infrastructure.Postgres.csproj" />
     </ItemGroup>
 
 </Project>

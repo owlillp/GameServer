@@ -6,4 +6,15 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\AuthService.Contracts\AuthService.Contracts.csproj" />
+      <ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="owlip.shared.core" />
+      <PackageReference Include="owlip.shared.framework" />
+      <PackageReference Include="owlip.shared.messaging" />
+    </ItemGroup>
+
 </Project>

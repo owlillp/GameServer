@@ -1,41 +1,40 @@
-var builder = WebApplication.CreateBuilder(args);
+using AuthService.Web;
+using AuthService.Web.Configurations;
+using Serilog;
+using Shared.Framework.Logging;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+Log.Logger = LoggingExtensions.CreateBootstrapLogger(Constants.SERVICE_NAME);
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+try
 {
-    app.MapOpenApi();
+    Log.Information("Starting application: {ServiceName}", Constants.SERVICE_NAME);
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.AddSerilogLogging(Constants.SERVICE_NAME);
+    builder.Services.AddDependency(builder.Configuration);
+
+    var app = builder.Build();
+
+    app.Configure(args);
+
+    await app.RunAsync();
+}
+catch (HostAbortedException)
+{
+    // Expected when running EF migrations tooling
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
 }
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
+namespace AuthService.Web
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public class Program;
 }
