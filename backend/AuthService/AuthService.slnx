@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/SolutionFolder/">
+    <File Path="../.gitignore" />
+    <File Path="../Directory.Build.props" />
+    <File Path="../Directory.Packages.props" />
+  </Folder>
+  <Project Path="src/AuthService.Contracts/AuthService.Contracts.csproj" />
+  <Project Path="src/AuthService.Core/AuthService.Core.csproj" />
+  <Project Path="src/AuthService.Domain/AuthService.Domain.csproj" />
+  <Project Path="src/AuthService.Infrastructure.Postrgres/AuthService.Infrastructure.Postrgres.csproj" />
+  <Project Path="src/AuthService.Web/AuthService.Web.csproj" />
+</Solution>
