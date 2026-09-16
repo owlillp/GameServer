@@ -1,4 +1,23 @@
 services:
+  auth-migrator:
+    container_name: auth-migrator
+    build:
+      context: ./backend
+      dockerfile: AuthService/Dockerfile
+      target: migrations
+      args:
+        NUGET_USERNAME: ${NUGET_USERNAME}
+      secrets:
+        - nuget_password
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ConnectionStrings__AuthDb=${ConnectionStrings__AuthDb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["--connection", "${ConnectionStrings__AuthDb}"]
+    restart: "no"
+
   auth-service:
     container_name: auth-service
     build:
@@ -17,6 +36,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      auth-migrator:
+        condition: service_completed_successfully
     restart: always
 
   postgres:

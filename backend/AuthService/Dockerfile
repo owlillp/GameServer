@@ -18,6 +18,9 @@ COPY ["Directory.Build.props", "."]
 COPY ["Directory.Packages.props", "."]
 COPY ["AuthService/", "AuthService/"]
 
+RUN dotnet tool install --global dotnet-ef --version 10.0.12
+ENV PATH="$PATH:/root/.dotnet/tools"
+
 RUN --mount=type=secret,id=nuget_password \
     dotnet nuget update source github \
         --username "$NUGET_USERNAME" \
@@ -25,6 +28,11 @@ RUN --mount=type=secret,id=nuget_password \
         --store-password-in-clear-text \
         --configfile /app/nuget.config \
  && dotnet restore "AuthService/src/AuthService.Web/AuthService.Web.csproj" \
+ && dotnet ef migrations bundle \
+        --project "AuthService/src/AuthService.Infrastructure.Postgres/AuthService.Infrastructure.Postgres.csproj" \
+        --startup-project "AuthService/src/AuthService.Web/AuthService.Web.csproj" \
+        --configuration "$BUILD_CONFIGURATION" \
+        --output /app/efbundle \
  && rm -f /app/nuget.config
 
 RUN dotnet build "AuthService/src/AuthService.Web/AuthService.Web.csproj" \
@@ -39,6 +47,11 @@ RUN dotnet publish "AuthService/src/AuthService.Web/AuthService.Web.csproj" \
     -o /app/publish \
     --no-restore \
     /p:UseAppHost=false
+
+FROM base AS migrations
+WORKDIR /app
+COPY --from=build /app/efbundle .
+ENTRYPOINT ["./efbundle"]
 
 FROM base AS final
 WORKDIR /app

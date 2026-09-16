@@ -9,9 +9,12 @@ public class AuthServiceDbContextDesignTimeFactory : IDesignTimeDbContextFactory
 
     public AuthServiceDbContext CreateDbContext(string[] args)
     {
+        string connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__AuthDb")
+                                  ?? CONNECTION_STRING;
+
         var optionsBuilder = new DbContextOptionsBuilder<AuthServiceDbContext>();
         optionsBuilder.UseNpgsql(
-            CONNECTION_STRING,
+            connectionString,
             npgsql => npgsql.MigrationsHistoryTable(Constants.EF_MIGRATION_HISTORY, Constants.SCHEMA));
         return new AuthServiceDbContext(optionsBuilder.Options);
     }
