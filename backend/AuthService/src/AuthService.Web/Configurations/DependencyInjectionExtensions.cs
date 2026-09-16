@@ -14,6 +14,9 @@ public static class DependencyInjectionExtensions
     {
         public IServiceCollection AddDependency(IConfiguration configuration)
         {
+            services.AddAuthentication();
+            services.AddAuthorization();
+
             services.AddFrameworkCors(configuration);
             services.AddOpenApiSpec(Constants.SERVICE_NAME, "v1");
             services.AddHealthChecks().AddDbContextCheck<AuthServiceDbContext>(POSTGRESQL_HEALTH_CHECK);
