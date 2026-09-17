@@ -1,0 +1,5 @@
+# EF Core migrations are generated code — relax analyzer rules for this folder
+root = false
+
+[*.cs]
+dotnet_diagnostic.S1186.severity = none
