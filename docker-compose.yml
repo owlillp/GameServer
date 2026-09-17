@@ -1,6 +1,6 @@
 services:
   auth-migrator:
-    container_name: auth-migrator
+    container_name: auth-service-migrator
     build:
       context: ./backend
       dockerfile: AuthService/Dockerfile
@@ -41,7 +41,7 @@ services:
     restart: always
 
   postgres:
-    container_name: auth-db-postgres
+    container_name: db-postgres
     image: postgres:17-alpine
     restart: always
     environment:
@@ -57,6 +57,29 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost/api
+    ports:
+      - "3000:3000"
+    restart: always
+
+  nginx:
+    container_name: nginx
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - frontend
+    restart: always
 
 secrets:
   nuget_password:
