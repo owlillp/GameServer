@@ -1,38 +1,75 @@
+import axios from "axios";
+
+export const ErrorType = {
+  VALIDATION: "VALIDATION",
+  NOT_FOUND: "NOT_FOUND",
+  FAILURE: "FAILURE",
+  CONFLICT: "CONFLICT",
+  AUTHENTICATION: "AUTHENTICATION",
+  AUTHORIZATION: "AUTHORIZATION",
+} as const;
+
+export type ErrorType = (typeof ErrorType)[keyof typeof ErrorType];
+
 export type ErrorMessage = {
   code: string;
   message: string;
-  type: ErrorType;
   invalidField?: string | null;
 };
 
-export type ErrorType =
-  "validation" | "not_found" | "failure" | "conflict" | "canceled";
+export type ApiError = {
+  messages: ErrorMessage[];
+  type: ErrorType;
+  isCritical?: boolean;
+};
 
 export class EnvelopeError extends Error {
-  public readonly errors: ErrorMessage[];
+  public readonly apiError: ApiError;
   public readonly type: ErrorType;
 
-  constructor(errors: ErrorMessage[]) {
-    const firstError = errors[0];
-
-    super(firstError.message ?? "Неизвестная ошибка");
+  constructor(apiError: ApiError) {
+    super(apiError.messages[0]?.message ?? "Неизвестная ошибка");
 
     this.name = "EnvelopeError";
-    this.errors = errors;
-    this.type = firstError.type;
+    this.apiError = apiError;
+    this.type = apiError.type;
 
     Object.setPrototypeOf(this, EnvelopeError.prototype);
   }
 
-  get firstError(): ErrorMessage {
-    return this.errors[0];
+  get messages(): ErrorMessage[] {
+    return this.apiError.messages;
+  }
+
+  get firstError(): ErrorMessage | undefined {
+    return this.apiError.messages[0];
   }
 
   get allMessages(): string[] {
-    return this.errors.map((er) => er.message);
+    return this.apiError.messages.map((error) => error.message);
   }
 }
 
 export function isEnvelopeError(error: unknown): error is EnvelopeError {
   return error instanceof EnvelopeError;
+}
+
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (isEnvelopeError(error)) {
+    return error.firstError?.message || fallback;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+export function isForbiddenError(error: unknown): boolean {
+  if (isEnvelopeError(error)) {
+    return error.type === ErrorType.AUTHORIZATION;
+  }
+
+  return axios.isAxiosError(error) && error.response?.status === 403;
 }

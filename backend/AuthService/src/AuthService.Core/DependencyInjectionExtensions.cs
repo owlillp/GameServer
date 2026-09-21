@@ -1,5 +1,6 @@
 ﻿using AuthService.Core.Configurations;
 using AuthService.Domain;
+using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ public static class DependencyInjectionExtensions
         public IServiceCollection AddCore(IConfiguration configuration)
         {
             services.AddHandlers(typeof(DependencyInjectionExtensions).Assembly);
+            services.AddValidatorsFromAssembly(typeof(DependencyInjectionExtensions).Assembly);
 
             services.AddIdentity(configuration);
 
