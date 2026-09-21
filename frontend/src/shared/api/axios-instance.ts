@@ -16,8 +16,8 @@ apiClient.interceptors.response.use(
   (response) => {
     const envelope = response.data as Envelope;
 
-    if (envelope.isFailure && envelope.errors) {
-      return Promise.reject(new EnvelopeError(envelope.errors));
+    if (envelope?.isError && envelope.error) {
+      return Promise.reject(new EnvelopeError(envelope.error));
     }
 
     return response;
@@ -26,8 +26,8 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error) && error.response?.data) {
       const envelope = error.response.data as Envelope;
 
-      if (envelope.isFailure && envelope.errors) {
-        return Promise.reject(new EnvelopeError(envelope.errors));
+      if (envelope?.isError && envelope.error) {
+        return Promise.reject(new EnvelopeError(envelope.error));
       }
     }
 
