@@ -1,4 +1,5 @@
 ﻿using Scalar.AspNetCore;
+using Shared.Framework.Authentication;
 using Shared.Framework.Cors;
 using Shared.Framework.Endpoints;
 using Shared.Framework.Logging;
@@ -16,6 +17,7 @@ public static class AppConfigurationExtensions
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseCurrentUser();
 
         if (!app.Environment.IsProduction())
         {

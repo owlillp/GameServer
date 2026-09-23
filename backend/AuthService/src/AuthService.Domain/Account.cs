@@ -6,6 +6,8 @@ public sealed class Account : IdentityUser<Guid>
 {
     public string? DisplayName { get; private set; }
 
+    public UserProfile Profile { get; private set; } = UserProfile.Empty;
+
     public DateTime CreatedAt { get; private set; }
 
     public DateTime UpdatedAt { get; private set; }
@@ -19,6 +21,7 @@ public sealed class Account : IdentityUser<Guid>
         UserName = userName;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+        Profile = UserProfile.Empty;
     }
 
     public void SetDisplayName(string? displayName)

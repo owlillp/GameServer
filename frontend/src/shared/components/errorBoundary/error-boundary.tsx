@@ -23,6 +23,19 @@ export function DefaultFallback({ error, resetErrorBoundary }: FallbackProps) {
             : "Произошла непредвиденная ошибка"}
         </p>
 
+        {error instanceof Error && (
+          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-xs text-slate-500">
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">
+              {error.name || "Error"}
+            </code>
+            {typeof (error as { digest?: string }).digest === "string" && (
+              <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">
+                digest: {(error as { digest?: string }).digest}
+              </code>
+            )}
+          </p>
+        )}
+
         <button
           type="button"
           onClick={resetErrorBoundary}

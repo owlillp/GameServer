@@ -13,13 +13,13 @@
 
     <ItemGroup>
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+      <PackageReference Include="Microsoft.IdentityModel.Tokens" />
       <PackageReference Include="owlip.shared.core" />
       <PackageReference Include="owlip.shared.framework" />
       <PackageReference Include="owlip.shared.messaging" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Features\Auth\Queries\" />
+      <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     </ItemGroup>
 
 </Project>

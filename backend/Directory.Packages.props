@@ -21,17 +21,19 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.19.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Respawn" Version="7.0.0" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.3" />
     <!-- Shared -->
     <PackageVersion Include="owlip.shared.core" Version="0.0.1" />
-    <PackageVersion Include="owlip.shared.framework" Version="0.0.4" />
+    <PackageVersion Include="owlip.shared.framework" Version="0.0.5" />
     <PackageVersion Include="owlip.shared.messaging" Version="0.0.1" />
     <PackageVersion Include="Owlip.Shared.SharedKernel" Version="0.0.1" />
     <!-- Logging (Serilog) -->
