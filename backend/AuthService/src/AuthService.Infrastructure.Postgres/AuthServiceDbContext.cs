@@ -8,6 +8,8 @@ namespace AuthService.Infrastructure.Postgres;
 public class AuthServiceDbContext(DbContextOptions<AuthServiceDbContext> options)
     : IdentityDbContext<Account, Role, Guid>(options), IReadDbContext
 {
+    public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
+
     public IQueryable<Account> AccountsRead => Set<Account>()
         .AsQueryable()
         .AsNoTracking();

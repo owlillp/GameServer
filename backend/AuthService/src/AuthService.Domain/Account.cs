@@ -12,6 +12,7 @@ public sealed class Account : IdentityUser<Guid>
 
     public DateTime UpdatedAt { get; private set; }
 
+    // EF Core
     private Account() { }
 
     public Account(string email, string userName)

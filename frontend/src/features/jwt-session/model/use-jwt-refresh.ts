@@ -3,23 +3,24 @@ import { useSessionStore } from "@/src/shared/stores/session-store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-// JWT-схема: /auth/jwt/login. Токен кладём в zustand; axios-интерсептор
-// подставит Authorization: Bearer на последующие запросы.
-export function useJwtLogin() {
+// Ручное обновление access-токена по HttpOnly refresh-cookie.
+export function useJwtRefresh() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: authApi.jwtLogin,
+    mutationFn: authApi.jwtRefresh,
     onSuccess: (response) => {
       useSessionStore.getState().setJwt(response.accessToken);
-      // Сервер выставил HttpOnly refresh-cookie — обновляем статус сессии.
       void queryClient.invalidateQueries({ queryKey: authQueryKeys.all });
-      toast.success("Вход выполнен");
+      toast.success("Access-токен обновлён");
+    },
+    onError: () => {
+      toast.error("Не удалось обновить токен");
     },
   });
 
   return {
-    jwtLogin: mutation.mutateAsync,
+    refresh: mutation.mutate,
     isPending: mutation.isPending,
     isError: mutation.isError,
     error: mutation.error,
