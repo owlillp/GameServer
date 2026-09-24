@@ -80,6 +80,8 @@ public static class DependencyInjectionExtensions
         private void AddJwtAuth(IConfiguration configuration)
         {
             services.AddSingleton<IJwtTokenService, JwtTokenService>();
+            services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
+            services.AddScoped<IRefreshTokenCookieService, RefreshTokenCookieService>();
 
             var jwtSection = configuration.GetSection(JwtSettings.SECTION_NAME);
             services.Configure<JwtSettings>(jwtSection);

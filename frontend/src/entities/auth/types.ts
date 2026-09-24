@@ -22,10 +22,18 @@ export type LoginResponse = {
   userName: string;
 };
 
-// JWT-схема: /auth/jwt/login.
+// JWT-схема: /auth/jwt/login (и /auth/jwt/refresh — тот же shape).
 export type JwtLoginResponse = {
   accessToken: string;
   expiresAt: string;
+};
+
+// GET /auth/jwt/session — состояние refresh-сессии (HttpOnly cookie "refresh_token").
+export type JwtSessionStatusResponse = {
+  hasRefreshCookie: boolean;
+  isRefreshSessionActive: boolean;
+  refreshSessionExpiresAt: string | null;
+  refreshSessionRevokedAt: string | null;
 };
 
 export type ProfileBody = {

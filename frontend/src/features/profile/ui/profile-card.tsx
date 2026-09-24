@@ -1,6 +1,7 @@
 "use client";
 
-import { profileQueryOptions } from "@/src/entities/auth";
+import { authApi, profileQueryOptions } from "@/src/entities/auth";
+import { JwtSessionCard } from "@/src/features/jwt-session";
 import { ErrorType, isEnvelopeError } from "@/src/shared/api/errors";
 import { useIsHydrated } from "@/src/shared/lib/use-is-hydrated";
 import { routes } from "@/src/shared/routes";
@@ -59,9 +60,15 @@ export function ProfileCard() {
 
   if (!data) return null;
 
-  const handleLogout = () => {
-    // Cookie остаётся на сервере (HttpOnly) — для полного выхода нужен
-    // backend-endpoint /auth/logout. Локально сбрасываем сессию.
+  const handleLogout = async () => {
+    // JWT-схема: отзываем refresh-сессию и удаляем HttpOnly refresh-cookie.
+    if (scheme === "jwt") {
+      try {
+        await authApi.jwtLogout();
+      } catch {
+        // Даже если отзыв не прошёл — локально выходим.
+      }
+    }
     useSessionStore.getState().clear();
     router.replace(routes.login);
   };
@@ -128,6 +135,8 @@ export function ProfileCard() {
         </section>
       )}
 
+      <JwtSessionCard />
+
       <div className="flex items-center gap-3">
         <Link
           href={routes.home}
@@ -135,7 +144,12 @@ export function ProfileCard() {
         >
           На главную
         </Link>
-        <Button variant="ghost" onClick={handleLogout}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            void handleLogout();
+          }}
+        >
           Выйти
         </Button>
       </div>

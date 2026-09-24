@@ -1,9 +1,11 @@
-using AuthService.Contracts.Responses;
+using AuthService.Core.Abstractions;
+using AuthService.Core.Configurations;
 using AuthService.Core.Features.Auth.Services;
 using AuthService.Domain;
 using CSharpFunctionalExtensions;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Shared.Core.Abstractions;
 using Shared.Core.Database;
 using Shared.Core.Validation;
@@ -16,10 +18,16 @@ public sealed class JwtLoginHandler(
     ITransactionManager transactionManager,
     SignInManager<Account> signInManager,
     UserManager<Account> userManager,
+    IRefreshTokenService refreshTokenService,
+    IRefreshSessionRepository refreshSessionRepository,
+    IOptions<JwtSettings> options,
+    TimeProvider timeProvider,
     IJwtTokenService jwtTokenService)
-    : ICommandHandler<JwtLoginResponse, JwtLoginCommand>
+    : ICommandHandler<JwtLoginResult, JwtLoginCommand>
 {
-    public async Task<Result<JwtLoginResponse, Error>> Handle(
+    private readonly JwtSettings _settings = options.Value;
+
+    public async Task<Result<JwtLoginResult, Error>> Handle(
         JwtLoginCommand command,
         CancellationToken cancellationToken = new ())
     {
@@ -51,6 +59,17 @@ public sealed class JwtLoginHandler(
             return MapSignInFailure(checkResult);
         }
 
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var refreshExpiresAt = now.AddDays(_settings.RefreshTokenLifetimeDays);
+        string refreshToken = refreshTokenService.GenerateToken();
+        var refreshSession = RefreshSession.Create(
+            account.Id,
+            refreshTokenService.Hash(refreshToken),
+            now,
+            refreshExpiresAt);
+
+        await refreshSessionRepository.AddAsync(refreshSession, cancellationToken);
+
         var commitResult = await transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
         {
@@ -60,11 +79,11 @@ public sealed class JwtLoginHandler(
         var roles = await userManager.GetRolesAsync(account);
         var token = jwtTokenService.Generate(account, [.. roles]);
 
-        return new JwtLoginResponse
-        {
-            AccessToken = token.AccessToken,
-            ExpiresAt = token.ExpiresAt
-        };
+        return new JwtLoginResult(
+            token.AccessToken,
+            token.ExpiresAt,
+            refreshToken,
+            refreshExpiresAt);
     }
 
     private static Error InvalidCredentials() =>
