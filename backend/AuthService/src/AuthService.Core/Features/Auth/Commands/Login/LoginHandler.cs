@@ -10,6 +10,7 @@ using Shared.Core.Database;
 using Shared.Core.Validation;
 using Shared.SharedKernel.Errors;
 using AuthService.Core.Extensions;
+using Shared.Framework.Authentication;
 
 namespace AuthService.Core.Features.Auth.Commands.Login;
 
@@ -17,8 +18,8 @@ public sealed class LoginHandler(
     IValidator<LoginCommand> validator,
     SignInManager<Account> signInManager,
     UserManager<Account> userManager,
-    ITransactionManager transactionManager
-) : ICommandHandler<LoginResponse, LoginCommand>
+    ITransactionManager transactionManager)
+    : ICommandHandler<LoginResponse, LoginCommand>
 {
     public async Task<Result<LoginResponse, Error>> Handle(
         LoginCommand command,

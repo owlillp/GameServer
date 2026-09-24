@@ -23,6 +23,13 @@ export type ApiError = {
   isCritical?: boolean;
 };
 
+// Строка ошибки для UI: код + текст (+ поле, если ошибка валидации поля).
+export type ErrorLine = {
+  code: string;
+  message: string;
+  invalidField?: string | null;
+};
+
 export class EnvelopeError extends Error {
   public readonly apiError: ApiError;
   public readonly type: ErrorType;
@@ -64,6 +71,27 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+// Приводит любую ошибку к списку строк с кодом, чтобы UI показывал не только
+// сообщение, но и код (Envelope-код, HTTP-статус, имя/код ошибки).
+export function getErrorLines(error: unknown, fallback: string): ErrorLine[] {
+  if (isEnvelopeError(error)) {
+    if (error.messages.length > 0) return error.messages;
+    return [{ code: "UNKNOWN", message: fallback }];
+  }
+
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const code = status ? `HTTP ${status}` : (error.code ?? "NETWORK");
+    return [{ code, message: getErrorMessage(error, fallback) }];
+  }
+
+  if (error instanceof Error && error.message) {
+    return [{ code: error.name || "ERROR", message: error.message }];
+  }
+
+  return [{ code: "UNKNOWN", message: fallback }];
 }
 
 export function isForbiddenError(error: unknown): boolean {

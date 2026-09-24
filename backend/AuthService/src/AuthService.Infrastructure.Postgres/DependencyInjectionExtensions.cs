@@ -1,4 +1,5 @@
-﻿using AuthService.Domain;
+﻿using AuthService.Core.Abstractions;
+using AuthService.Domain;
 using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,9 @@ public static class DependencyInjectionExtensions
                 options.EnableDetailedErrors();
             }
         });
+
         services.AddScoped<ITransactionManager, TransactionManager>();
+        services.AddScoped<IReadDbContext, AuthServiceDbContext>();
 
         new IdentityBuilder(typeof(Account), typeof(Role), services)
             .AddEntityFrameworkStores<AuthServiceDbContext>();

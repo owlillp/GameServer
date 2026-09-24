@@ -24,6 +24,12 @@ export default function Home() {
         >
           Регистрация
         </Link>
+        <Link
+          href={routes.profile}
+          className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+        >
+          Мой профиль
+        </Link>
       </div>
     </div>
   );

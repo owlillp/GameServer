@@ -268,6 +268,34 @@ namespace AuthService.Infrastructure.Postgres.Migrations
                     b.ToTable("account_tokens", "auth");
                 });
 
+            modelBuilder.Entity("AuthService.Domain.Account", b =>
+                {
+                    b.OwnsOne("AuthService.Domain.UserProfile", "Profile", b1 =>
+                        {
+                            b1.Property<Guid>("AccountId");
+
+                            b1.Property<int?>("Age");
+
+                            b1.Property<string>("Bio");
+
+                            b1.Property<string>("Location");
+
+                            b1.HasKey("AccountId");
+
+                            b1.ToTable("accounts", "auth");
+
+                            b1
+                                .ToJson("profile")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AccountId");
+                        });
+
+                    b.Navigation("Profile")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("AuthService.Domain.Role", null)

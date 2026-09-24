@@ -1,38 +1,66 @@
 "use client";
 
-import { getErrorMessage, isEnvelopeError } from "@/src/shared/api/errors";
+import { routes } from "@/src/shared/routes";
+import type { AuthScheme } from "@/src/shared/stores/session-store";
+import { ApiErrorList } from "@/src/shared/ui/api-error-list";
 import { Button } from "@/src/shared/ui/button";
 import { Input } from "@/src/shared/ui/input";
+import { PasswordInput } from "@/src/shared/ui/password-input";
+import { SchemeToggle } from "@/src/shared/ui/scheme-toggle";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormValues } from "../model/schema";
+import { useJwtLogin } from "../model/use-jwt-login";
 import { useLogin } from "../model/use-login";
 
 export function LoginForm() {
   const router = useRouter();
+  const [scheme, setScheme] = useState<AuthScheme>("cookie");
+
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    mode: "onTouched",
     defaultValues: { email: "", password: "" },
   });
 
-  const { login, isPending, isError, error } = useLogin();
+  // Обе мутации живут одновременно — активную выбираем по схеме.
+  const cookieMutation = useLogin();
+  const jwtMutation = useJwtLogin();
+  const active = scheme === "cookie" ? cookieMutation : jwtMutation;
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await login(values);
-      router.push("/dashboard");
+      if (scheme === "cookie") {
+        await cookieMutation.login(values);
+      } else {
+        await jwtMutation.jwtLogin(values);
+      }
+      // После успешного логина попадаем на профиль.
+      router.push(routes.profile);
     } catch {
-      // Ошибка уже в `error` — отрисуем ниже.
+      // Ошибка уже в active.error — отрисуем ниже.
     }
   });
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3" noValidate>
+    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <div>
+        <span className="mb-1 block text-sm font-medium text-slate-700">
+          Способ входа
+        </span>
+        <SchemeToggle
+          value={scheme}
+          onChange={setScheme}
+          disabled={active.isPending}
+        />
+      </div>
+
       <div>
         <label
           className="mb-1 block text-sm font-medium text-slate-700"
@@ -43,7 +71,9 @@ export function LoginForm() {
         <Input
           id="email"
           type="email"
-          autoComplete="email"
+          autoComplete="username"
+          required
+          enterKeyHint="next"
           {...register("email")}
         />
         {errors.email && (
@@ -54,14 +84,15 @@ export function LoginForm() {
       <div>
         <label
           className="mb-1 block text-sm font-medium text-slate-700"
-          htmlFor="password"
+          htmlFor="current-password"
         >
           Пароль
         </label>
-        <Input
-          id="password"
-          type="password"
+        <PasswordInput
+          id="current-password"
           autoComplete="current-password"
+          required
+          enterKeyHint="done"
           {...register("password")}
         />
         {errors.password && (
@@ -69,21 +100,15 @@ export function LoginForm() {
         )}
       </div>
 
-      <Button type="submit" disabled={isPending} className="w-full">
-        {isPending ? "Входим..." : "Войти"}
+      <Button type="submit" disabled={isSubmitting || active.isPending} className="w-full">
+        {active.isPending
+          ? "Входим..."
+          : scheme === "cookie"
+            ? "Войти (cookie)"
+            : "Войти (JWT)"}
       </Button>
 
-      {isError && (
-        <div className="space-y-1 text-sm text-red-600">
-          {isEnvelopeError(error) ? (
-            error.allMessages.map((message, index) => (
-              <p key={`${index}-${message}`}>{message}</p>
-            ))
-          ) : (
-            <p>{getErrorMessage(error, "Не удалось войти")}</p>
-          )}
-        </div>
-      )}
+      <ApiErrorList error={active.error} fallback="Не удалось войти" />
     </form>
   );
 }

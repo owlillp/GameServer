@@ -15,15 +15,17 @@ import { useEffect } from "react";
 export default function DashboardPage() {
   const router = useRouter();
   const hydrated = useIsHydrated();
+  const isAuthenticated = useSessionStore(sessionSelectors.isAuthenticated);
+  const displayName = useSessionStore(sessionSelectors.displayName);
   const account = useSessionStore(sessionSelectors.account);
 
   useEffect(() => {
-    if (hydrated && !account) {
+    if (hydrated && !isAuthenticated) {
       router.replace(routes.login);
     }
-  }, [hydrated, account, router]);
+  }, [hydrated, isAuthenticated, router]);
 
-  if (!hydrated || !account) {
+  if (!hydrated || !isAuthenticated) {
     return (
       <main className="flex flex-1 items-center justify-center p-10">
         <Spinner label="Загружаем профиль..." />
@@ -44,31 +46,35 @@ export default function DashboardPage() {
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
         <dl className="space-y-3">
           <div className="flex justify-between gap-4">
-            <dt className="text-sm text-slate-500">Имя пользователя</dt>
+            <dt className="text-sm text-slate-500">Пользователь</dt>
             <dd className="text-sm font-medium text-slate-900">
-              {account.userName}
+              {displayName}
             </dd>
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-sm text-slate-500">Email</dt>
-            <dd className="text-sm font-medium text-slate-900">
-              {account.email}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-sm text-slate-500">ID аккаунта</dt>
-            <dd className="text-sm font-medium break-all text-slate-900">
-              {account.accountId}
-            </dd>
-          </div>
+          {account && (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className="text-sm text-slate-500">Email</dt>
+                <dd className="text-sm font-medium text-slate-900">
+                  {account.email}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-sm text-slate-500">ID аккаунта</dt>
+                <dd className="text-sm font-medium break-all text-slate-900">
+                  {account.accountId}
+                </dd>
+              </div>
+            </>
+          )}
         </dl>
 
         <div className="mt-6 flex items-center gap-3">
           <Link
-            href={routes.home}
+            href={routes.profile}
             className="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
-            На главную
+            Мой профиль
           </Link>
           <Button variant="ghost" onClick={handleLogout}>
             Выйти

@@ -13,7 +13,8 @@ namespace AuthService.Core.Features.Auth.Commands.Register;
 public sealed class RegisterHandler(
     IValidator<RegisterCommand> validator,
     UserManager<Account> userManager,
-    ITransactionManager transactionManager): ICommandHandler<RegisterResponse, RegisterCommand>
+    ITransactionManager transactionManager)
+    : ICommandHandler<RegisterResponse, RegisterCommand>
 {
     public async Task<Result<RegisterResponse, Error>> Handle(
         RegisterCommand command,
