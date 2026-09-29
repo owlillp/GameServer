@@ -9,11 +9,13 @@ namespace AuthService.Web.Configurations;
 
 public static class AppConfigurationExtensions
 {
-    public static WebApplication Configure(this WebApplication app, string[] args)
+    public static IApplicationBuilder Configure(this WebApplication app, string[] args)
     {
+        app.UseRouting();
+        app.UseRateLimiter();
         app.UseSerilogHttpRequestLogging();
         app.UseExceptionMiddleware();
-        app.ConfigureCors();
+        app.UseRequestCorrelationId();
 
         app.UseAuthentication();
         app.UseAuthorization();
@@ -25,6 +27,7 @@ public static class AppConfigurationExtensions
             app.MapScalarApiReference();
         }
 
+        app.ConfigureCors();
         app.MapHealthChecks("/health");
         app.MapEndpoints();
 

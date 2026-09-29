@@ -1,6 +1,5 @@
 ﻿using AuthService.Core.Abstractions;
 using AuthService.Domain;
-using AuthService.Infrastructure.Postgres.Repositories;
 using Dapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +46,6 @@ public static class DependencyInjectionExtensions
 
         services.AddScoped<ITransactionManager, TransactionManager>();
         services.AddScoped<IReadDbContext, AuthServiceDbContext>();
-        services.AddScoped<IRefreshSessionRepository, RefreshSessionRepository>();
 
         new IdentityBuilder(typeof(Account), typeof(Role), services)
             .AddEntityFrameworkStores<AuthServiceDbContext>();

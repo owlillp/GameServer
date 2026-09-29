@@ -1,17 +1,11 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-using AuthService.Core.Configurations;
-using AuthService.Core.Features.Auth.Services;
+﻿using AuthService.Core.Configurations;
 using AuthService.Domain;
 using FluentValidation;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
 using Shared.Core.Abstractions;
-using Shared.Framework.Authentication;
 
 namespace AuthService.Core;
 
@@ -35,7 +29,6 @@ public static class DependencyInjectionExtensions
         private IServiceCollection AddIdentity(IConfiguration configuration)
         {
             services.AddCookieAuth(configuration);
-            services.AddJwtAuth(configuration);
 
             return services;
         }
@@ -75,45 +68,6 @@ public static class DependencyInjectionExtensions
                     return Task.CompletedTask;
                 };
             });
-        }
-
-        private void AddJwtAuth(IConfiguration configuration)
-        {
-            services.AddSingleton<IJwtTokenService, JwtTokenService>();
-            services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
-            services.AddScoped<IRefreshTokenCookieService, RefreshTokenCookieService>();
-
-            var jwtSection = configuration.GetSection(JwtSettings.SECTION_NAME);
-            services.Configure<JwtSettings>(jwtSection);
-            var jwt = jwtSection.Get<JwtSettings>() ?? new JwtSettings();
-
-            if (string.IsNullOrWhiteSpace(jwt.SigningKey))
-            {
-                throw new InvalidOperationException(
-                    $"'{JwtSettings.SECTION_NAME}:SigningKey' is not configured. "
-                    + "Set Jwt:SigningKey in appsettings or JWT__SIGNINGKEY env var.");
-            }
-
-            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
-
-            services
-                .AddAuthentication()
-                .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = jwt.Issuer,
-                        ValidateAudience = true,
-                        ValidAudience = jwt.Audience,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
-                        ClockSkew = TimeSpan.Zero,
-                        NameClaimType = AuthClaimTypes.NAME,
-                        RoleClaimType = AuthClaimTypes.ROLE,
-                    };
-                });
         }
     }
 }
