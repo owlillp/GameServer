@@ -6,7 +6,7 @@ export default function ProfilePage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold text-slate-900">Мой профиль</h1>
         <p className="text-xs text-slate-500">
-          GET /auth/profile — работает и под cookie, и под JWT. Сервер берёт
+          GET /auth/profile — защищён OIDC access-токеном (Bearer). Сервер берёт
           пользователя из claims.
         </p>
       </header>

@@ -1,18 +1,13 @@
-import { authApi, authQueryKeys } from "@/src/entities/auth";
-import { useSessionStore } from "@/src/shared/stores/session-store";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { authApi } from "@/src/entities/auth";
+import { startLogin } from "@/src/shared/auth/oidc";
+import { useMutation } from "@tanstack/react-query";
 
-// Cookie-схема: /auth/login + Identity-cookie от сервера.
+// Логин: /auth/login ставит Identity-cookie, затем уходим на /connect/authorize.
 export function useLogin() {
-  const queryClient = useQueryClient();
-
   const mutation = useMutation({
     mutationFn: authApi.login,
-    onSuccess: (account) => {
-      useSessionStore.getState().setAccount(account);
-      void queryClient.invalidateQueries({ queryKey: authQueryKeys.all });
-      toast.success(`С возвращением, ${account.userName}!`);
+    onSuccess: async () => {
+      await startLogin("/profile");
     },
   });
 

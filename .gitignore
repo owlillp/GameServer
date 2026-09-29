@@ -1,3 +1,6 @@
 .env
 .env.*
 !.env.example
+
+# Локальный dev-сертификат для nginx (генерируется scripts/prepare-nginx-https.ps1)
+nginx/certificates/

@@ -1,3 +1,4 @@
+import { refreshTokens } from "@/src/shared/auth/oidc";
 import { useSessionStore } from "@/src/shared/stores/session-store";
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import qs from "qs";
@@ -8,7 +9,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 declare module "axios" {
   export interface AxiosRequestConfig {
-    // Не пытаться обновлять access-токен при 401 (login/register/refresh/session).
+    // Не пытаться обновлять access-токен при 401 (login/register/token).
     skipAuthRefresh?: boolean;
     // Внутренний флаг: запрос уже повторяли после refresh.
     _retry?: boolean;
@@ -22,7 +23,7 @@ declare module "axios" {
 
 const apiClientConfig = {
   baseURL: BASE_URL,
-  // Без withCredentials axios не отправляет Identity-cookie и refresh-cookie.
+  // Без withCredentials axios не отправляет Identity-cookie (нужна для /auth/login).
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
   paramsSerializer: (params: unknown) =>
@@ -31,18 +32,10 @@ const apiClientConfig = {
 
 export const apiClient = axios.create(apiClientConfig);
 
-// Отдельный клиент для refresh — без интерсептора, чтобы не было рекурсии.
-const refreshClient = axios.create(apiClientConfig);
-
-type JwtRefreshPayload = {
-  accessToken: string;
-  expiresAt: string;
-};
-
 // Дедупликация: параллельные 401 ждут один и тот же refresh.
 let refreshPromise: Promise<string> | null = null;
 
-// Если в сторе есть JWT — добавляем Authorization: Bearer.
+// Если есть access-токен — добавляем Authorization: Bearer.
 apiClient.interceptors.request.use((config) => {
   const token = useSessionStore.getState().accessToken;
 
@@ -68,7 +61,7 @@ apiClient.interceptors.response.use(
     if (axios.isAxiosError(error)) {
       const config = error.config as InternalAxiosRequestConfig | undefined;
 
-      // 401 по JWT-схеме -> один раз пробуем обновить токен и повторить запрос.
+      // 401 -> один раз пробуем обновить access-токен и повторить запрос.
       if (config && shouldRefresh(error.response?.status, config)) {
         config._retry = true;
         try {
@@ -103,7 +96,7 @@ function shouldRefresh(
     status === 401 &&
     !config.skipAuthRefresh &&
     !config._retry &&
-    useSessionStore.getState().scheme === "jwt"
+    useSessionStore.getState().refreshToken !== null
   );
 }
 
@@ -115,15 +108,16 @@ function getRefreshPromise(): Promise<string> {
 }
 
 async function performRefresh(): Promise<string> {
-  const response = await refreshClient.post<Envelope<JwtRefreshPayload>>(
-    "/auth/jwt/refresh",
-  );
-  const envelope = response.data;
+  const refreshToken = useSessionStore.getState().refreshToken;
 
-  if (envelope.isError || !envelope.result) {
-    throw new EnvelopeError(envelope.error ?? { messages: [], type: ErrorType.FAILURE });
+  if (!refreshToken) {
+    throw new EnvelopeError({ messages: [], type: ErrorType.AUTHENTICATION });
   }
 
-  useSessionStore.getState().setJwt(envelope.result.accessToken);
-  return envelope.result.accessToken;
+  const tokens = await refreshTokens(refreshToken);
+  useSessionStore
+    .getState()
+    .setAccessToken(tokens.accessToken, tokens.expiresAt);
+
+  return tokens.accessToken;
 }

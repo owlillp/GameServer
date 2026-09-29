@@ -1,23 +1,18 @@
 "use client";
 
 import { routes } from "@/src/shared/routes";
-import type { AuthScheme } from "@/src/shared/stores/session-store";
 import { ApiErrorList } from "@/src/shared/ui/api-error-list";
 import { Button } from "@/src/shared/ui/button";
 import { Input } from "@/src/shared/ui/input";
 import { PasswordInput } from "@/src/shared/ui/password-input";
-import { SchemeToggle } from "@/src/shared/ui/scheme-toggle";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { registerSchema, type RegisterFormValues } from "../model/schema";
-import { useJwtRegister } from "../model/use-jwt-register";
 import { useRegister } from "../model/use-register";
 
 export function RegisterForm() {
   const router = useRouter();
-  const [scheme, setScheme] = useState<AuthScheme>("cookie");
 
   const {
     register,
@@ -29,38 +24,20 @@ export function RegisterForm() {
     defaultValues: { email: "", userName: "", password: "" },
   });
 
-  // Схема регистрации определяет endpoint: /auth/register или /auth/jwt/register.
-  const cookieMutation = useRegister();
-  const jwtMutation = useJwtRegister();
-  const active = scheme === "cookie" ? cookieMutation : jwtMutation;
+  const registerMutation = useRegister();
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      if (scheme === "cookie") {
-        await cookieMutation.register(values);
-      } else {
-        await jwtMutation.jwtRegister(values);
-      }
-      // После регистрации токен/кука не выдаются — отправляем на вход.
+      await registerMutation.register(values);
+      // После регистрации токен не выдаётся — отправляем на вход.
       router.push(routes.login);
     } catch {
-      // Ошибка уже в active.error — отрисуем ниже.
+      // Ошибка уже в registerMutation.error — отрисуем ниже.
     }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <div>
-        <span className="mb-1 block text-sm font-medium text-slate-700">
-          Способ регистрации
-        </span>
-        <SchemeToggle
-          value={scheme}
-          onChange={setScheme}
-          disabled={active.isPending}
-        />
-      </div>
-
       <div>
         <label
           className="mb-1 block text-sm font-medium text-slate-700"
@@ -126,18 +103,14 @@ export function RegisterForm() {
 
       <Button
         type="submit"
-        disabled={isSubmitting || active.isPending}
+        disabled={isSubmitting || registerMutation.isPending}
         className="w-full"
       >
-        {active.isPending
-          ? "Регистрируем..."
-          : scheme === "cookie"
-            ? "Зарегистрироваться (cookie)"
-            : "Зарегистрироваться (JWT)"}
+        {registerMutation.isPending ? "Регистрируем..." : "Зарегистрироваться"}
       </Button>
 
       <ApiErrorList
-        error={active.error}
+        error={registerMutation.error}
         fallback="Не удалось зарегистрироваться"
       />
     </form>

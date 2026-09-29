@@ -34,6 +34,7 @@ public static class DependencyInjectionExtensions
             var hostEnvironment = sp.GetRequiredService<IHostEnvironment>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
+            options.UseOpenIddict();
             options.UseNpgsql(dataSource, npgsql => npgsql.MigrationsHistoryTable(Constants.EF_MIGRATION_HISTORY, Constants.SCHEMA));
             options.UseLoggerFactory(loggerFactory);
 

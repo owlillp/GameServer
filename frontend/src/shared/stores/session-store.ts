@@ -2,13 +2,10 @@ import { jwtDecode } from "jwt-decode";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Единый zustand-стор сессии. Поддерживает две схемы аутентификации:
-//   • "cookie" — Identity.Application cookie; в сторе держим account из /auth/login.
-//   • "jwt"    — Bearer-токен; в сторе держим accessToken + декодированный user.
+// Единый zustand-стор OIDC-сессии. Токены приходят из /connect/token
+// (Authorization Code + PKCE), access-токен подставляется как Bearer.
 // Хук имеет статические .getState()/.setState(), поэтому доступен и вне React
 // (например, в интерсепторе axios).
-
-export type AuthScheme = "cookie" | "jwt";
 
 export type SessionUser = {
   sub: string;
@@ -18,76 +15,78 @@ export type SessionUser = {
   expiresAt: Date | null;
 };
 
-export type SessionAccount = {
-  accountId: string;
-  email: string;
-  userName: string;
+export type OidcTokens = {
+  accessToken: string;
+  refreshToken: string | null;
+  idToken: string | null;
+  expiresAt: number | null;
 };
 
 type SessionData = {
-  scheme: AuthScheme | null;
   accessToken: string | null;
+  refreshToken: string | null;
+  idToken: string | null;
+  expiresAt: number | null;
   user: SessionUser | null;
-  account: SessionAccount | null;
 };
 
 type SessionActions = {
-  setJwt: (accessToken: string) => void;
-  setAccount: (account: SessionAccount) => void;
+  setTokens: (tokens: OidcTokens) => void;
+  setAccessToken: (accessToken: string, expiresAt: number | null) => void;
   clear: () => void;
 };
 
 export type SessionStore = SessionData & SessionActions;
 
 const initialState: SessionData = {
-  scheme: null,
   accessToken: null,
+  refreshToken: null,
+  idToken: null,
+  expiresAt: null,
   user: null,
-  account: null,
 };
 
 export const useSessionStore = create<SessionStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
-      // Установка схемы jwt сбрасывает account, чтобы не смешивать схемы.
-      setJwt: (accessToken) =>
+      setTokens: (tokens) =>
         set({
-          scheme: "jwt",
-          accessToken,
-          user: decodeUser(accessToken),
-          account: null,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          idToken: tokens.idToken,
+          expiresAt: tokens.expiresAt,
+          user: decodeUser(tokens.accessToken, tokens.idToken),
         }),
-      // Установка cookie-схемы сбрасывает accessToken — запросы пойдут без Bearer.
-      setAccount: (account) =>
+      // Обновление только access-токена сохраняет refresh/id и пересчитывает user.
+      setAccessToken: (accessToken, expiresAt) =>
         set({
-          scheme: "cookie",
-          account,
-          accessToken: null,
-          user: null,
+          accessToken,
+          expiresAt,
+          user: decodeUser(accessToken, get().idToken),
         }),
       clear: () => set(initialState),
     }),
     {
       name: "gameserver-session",
-      // user/expiresAt производные от токена и не сериализуются как Date —
-      // пересчитываем их при гидратации (в partialize их нет).
       partialize: (state) => ({
-        scheme: state.scheme,
         accessToken: state.accessToken,
-        account: state.account,
+        refreshToken: state.refreshToken,
+        idToken: state.idToken,
+        expiresAt: state.expiresAt,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<SessionData>;
         const accessToken = p.accessToken ?? null;
-        const scheme = p.scheme ?? (p.account ? "cookie" : accessToken ? "jwt" : null);
+        const idToken = p.idToken ?? null;
 
         return {
           ...current,
-          scheme,
           accessToken,
-          account: p.account ?? null,
-          user: accessToken ? decodeUser(accessToken) : null,
+          refreshToken: p.refreshToken ?? null,
+          idToken,
+          expiresAt: p.expiresAt ?? null,
+          user: accessToken ? decodeUser(accessToken, idToken) : null,
         };
       },
     },
@@ -97,48 +96,61 @@ export const useSessionStore = create<SessionStore>()(
 const EMPTY_ROLES: string[] = [];
 
 export const sessionSelectors = {
-  scheme: (s: SessionStore) => s.scheme,
   accessToken: (s: SessionStore) => s.accessToken,
+  refreshToken: (s: SessionStore) => s.refreshToken,
   user: (s: SessionStore) => s.user,
-  account: (s: SessionStore) => s.account,
-  isAuthenticated: (s: SessionStore) => s.scheme !== null,
+  isAuthenticated: (s: SessionStore) => s.accessToken !== null,
   roles: (s: SessionStore) => s.user?.roles ?? EMPTY_ROLES,
   displayName: (s: SessionStore) =>
-    s.account?.userName ?? s.user?.name ?? s.user?.email ?? s.user?.sub ?? null,
-  setJwt: (s: SessionStore) => s.setJwt,
-  setAccount: (s: SessionStore) => s.setAccount,
+    s.user?.name ?? s.user?.email ?? s.user?.sub ?? null,
+  setTokens: (s: SessionStore) => s.setTokens,
+  setAccessToken: (s: SessionStore) => s.setAccessToken,
   clear: (s: SessionStore) => s.clear,
 } as const;
 
-type AuthJwtClaims = {
+type AccessClaims = {
   sub?: string;
-  // Разные версии/мапперы .NET кладут имя в name или unique_name.
   name?: string;
-  unique_name?: string;
   email?: string;
   role?: string | string[];
   roles?: string | string[];
   exp?: number;
 };
 
-function decodeUser(token: string): SessionUser | null {
-  let claims: AuthJwtClaims;
+type IdClaims = {
+  name?: string;
+  preferred_username?: string;
+};
+
+function decodeUser(accessToken: string, idToken: string | null): SessionUser | null {
+  let access: AccessClaims;
   try {
-    claims = jwtDecode<AuthJwtClaims>(token);
+    access = jwtDecode<AccessClaims>(accessToken);
   } catch {
     // Битый токен — user не определён, но accessToken оставляем: сервер
     // ответит 401 на следующий запрос.
     return null;
   }
 
-  if (!claims.sub) return null;
+  if (!access.sub) return null;
+
+  // name в нашем flow уходит в id_token (profile scope), а не в access.
+  let idName: string | undefined;
+  if (idToken) {
+    try {
+      const id = jwtDecode<IdClaims>(idToken);
+      idName = id.name ?? id.preferred_username;
+    } catch {
+      // id_token не критичен для user.
+    }
+  }
 
   return {
-    sub: claims.sub,
-    name: claims.name ?? claims.unique_name,
-    email: claims.email,
-    roles: normalizeRoles(claims.role ?? claims.roles),
-    expiresAt: typeof claims.exp === "number" ? new Date(claims.exp * 1000) : null,
+    sub: access.sub,
+    name: access.name ?? idName,
+    email: access.email,
+    roles: normalizeRoles(access.role ?? access.roles),
+    expiresAt: typeof access.exp === "number" ? new Date(access.exp * 1000) : null,
   };
 }
 

@@ -15,25 +15,11 @@ export type LoginRequest = {
   password: string;
 };
 
-// Cookie-схема: /auth/login. Тело ответа + сервер ставит Identity-cookie.
+// POST /auth/login — ставит Identity-cookie (нужна для шага /connect/authorize).
 export type LoginResponse = {
   accountId: string;
   email: string;
   userName: string;
-};
-
-// JWT-схема: /auth/jwt/login (и /auth/jwt/refresh — тот же shape).
-export type JwtLoginResponse = {
-  accessToken: string;
-  expiresAt: string;
-};
-
-// GET /auth/jwt/session — состояние refresh-сессии (HttpOnly cookie "refresh_token").
-export type JwtSessionStatusResponse = {
-  hasRefreshCookie: boolean;
-  isRefreshSessionActive: boolean;
-  refreshSessionExpiresAt: string | null;
-  refreshSessionRevokedAt: string | null;
 };
 
 export type ProfileBody = {
@@ -42,7 +28,7 @@ export type ProfileBody = {
   location: string | null;
 };
 
-// GET /auth/profile — работает и под cookie, и под Bearer.
+// GET /auth/profile — работает по Bearer access-токену.
 export type ProfileResponse = {
   id: string;
   email: string | null;

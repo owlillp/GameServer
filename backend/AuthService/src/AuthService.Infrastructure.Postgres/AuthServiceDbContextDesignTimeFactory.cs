@@ -16,6 +16,9 @@ public class AuthServiceDbContextDesignTimeFactory : IDesignTimeDbContextFactory
         optionsBuilder.UseNpgsql(
             connectionString,
             npgsql => npgsql.MigrationsHistoryTable(Constants.EF_MIGRATION_HISTORY, Constants.SCHEMA));
+
+        optionsBuilder.UseOpenIddict();
+
         return new AuthServiceDbContext(optionsBuilder.Options);
     }
 }

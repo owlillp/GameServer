@@ -1,8 +1,8 @@
 "use client";
 
-import { authApi, profileQueryOptions } from "@/src/entities/auth";
-import { JwtSessionCard } from "@/src/features/jwt-session";
+import { profileQueryOptions } from "@/src/entities/auth";
 import { ErrorType, isEnvelopeError } from "@/src/shared/api/errors";
+import { revokeToken } from "@/src/shared/auth/oidc";
 import { useIsHydrated } from "@/src/shared/lib/use-is-hydrated";
 import { routes } from "@/src/shared/routes";
 import {
@@ -19,7 +19,6 @@ import { useRouter } from "next/navigation";
 export function ProfileCard() {
   const router = useRouter();
   const hydrated = useIsHydrated();
-  const scheme = useSessionStore(sessionSelectors.scheme);
   const roles = useSessionStore(sessionSelectors.roles);
   const { data, isLoading, error, refetch, isFetching } = useQuery(
     profileQueryOptions(),
@@ -61,10 +60,10 @@ export function ProfileCard() {
   if (!data) return null;
 
   const handleLogout = async () => {
-    // JWT-схема: отзываем refresh-сессию и удаляем HttpOnly refresh-cookie.
-    if (scheme === "jwt") {
+    const refreshToken = useSessionStore.getState().refreshToken;
+    if (refreshToken) {
       try {
-        await authApi.jwtLogout();
+        await revokeToken(refreshToken);
       } catch {
         // Даже если отзыв не прошёл — локально выходим.
       }
@@ -79,7 +78,7 @@ export function ProfileCard() {
         <span className="inline-flex items-center gap-2 text-xs text-slate-500">
           Схема:
           <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
-            {hydrated && scheme === "jwt" ? "JWT (Bearer)" : "Cookie"}
+            OIDC (Bearer)
           </span>
         </span>
         <button
@@ -117,10 +116,10 @@ export function ProfileCard() {
         </dl>
       </section>
 
-      {hydrated && scheme === "jwt" && roles.length > 0 && (
+      {hydrated && roles.length > 0 && (
         <section className="space-y-2">
           <h3 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-            Роли (из JWT)
+            Роли (из токена)
           </h3>
           <div className="flex flex-wrap gap-2">
             {roles.map((role) => (
@@ -135,8 +134,6 @@ export function ProfileCard() {
         </section>
       )}
 
-      <JwtSessionCard />
-
       <div className="flex items-center gap-3">
         <Link
           href={routes.home}
@@ -144,12 +141,7 @@ export function ProfileCard() {
         >
           На главную
         </Link>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            void handleLogout();
-          }}
-        >
+        <Button variant="ghost" onClick={() => void handleLogout()}>
           Выйти
         </Button>
       </div>

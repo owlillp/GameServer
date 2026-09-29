@@ -11,6 +11,9 @@
         <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design"/>
         <PackageReference Include="Scalar.AspNetCore" />
+        <PackageReference Include="OpenIddict.Server.AspNetCore" />
+        <PackageReference Include="OpenIddict.Validation.AspNetCore" />
+        <PackageReference Include="OpenIddict.Validation.ServerIntegration" />
     </ItemGroup>
 
     <ItemGroup>

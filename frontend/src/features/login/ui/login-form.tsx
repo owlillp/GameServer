@@ -1,24 +1,15 @@
 "use client";
 
-import { routes } from "@/src/shared/routes";
-import type { AuthScheme } from "@/src/shared/stores/session-store";
 import { ApiErrorList } from "@/src/shared/ui/api-error-list";
 import { Button } from "@/src/shared/ui/button";
 import { Input } from "@/src/shared/ui/input";
 import { PasswordInput } from "@/src/shared/ui/password-input";
-import { SchemeToggle } from "@/src/shared/ui/scheme-toggle";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormValues } from "../model/schema";
-import { useJwtLogin } from "../model/use-jwt-login";
 import { useLogin } from "../model/use-login";
 
 export function LoginForm() {
-  const router = useRouter();
-  const [scheme, setScheme] = useState<AuthScheme>("cookie");
-
   const {
     register,
     handleSubmit,
@@ -29,38 +20,19 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  // Обе мутации живут одновременно — активную выбираем по схеме.
-  const cookieMutation = useLogin();
-  const jwtMutation = useJwtLogin();
-  const active = scheme === "cookie" ? cookieMutation : jwtMutation;
+  const loginMutation = useLogin();
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      if (scheme === "cookie") {
-        await cookieMutation.login(values);
-      } else {
-        await jwtMutation.jwtLogin(values);
-      }
-      // После успешного логина попадаем на профиль.
-      router.push(routes.profile);
+      // Успех уводит браузер на /connect/authorize — дальше загрузка не нужна.
+      await loginMutation.login(values);
     } catch {
-      // Ошибка уже в active.error — отрисуем ниже.
+      // Ошибка уже в loginMutation.error — отрисуем ниже.
     }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
-      <div>
-        <span className="mb-1 block text-sm font-medium text-slate-700">
-          Способ входа
-        </span>
-        <SchemeToggle
-          value={scheme}
-          onChange={setScheme}
-          disabled={active.isPending}
-        />
-      </div>
-
       <div>
         <label
           className="mb-1 block text-sm font-medium text-slate-700"
@@ -100,15 +72,15 @@ export function LoginForm() {
         )}
       </div>
 
-      <Button type="submit" disabled={isSubmitting || active.isPending} className="w-full">
-        {active.isPending
-          ? "Входим..."
-          : scheme === "cookie"
-            ? "Войти (cookie)"
-            : "Войти (JWT)"}
+      <Button
+        type="submit"
+        disabled={isSubmitting || loginMutation.isPending}
+        className="w-full"
+      >
+        {loginMutation.isPending ? "Входим..." : "Войти"}
       </Button>
 
-      <ApiErrorList error={active.error} fallback="Не удалось войти" />
+      <ApiErrorList error={loginMutation.error} fallback="Не удалось войти" />
     </form>
   );
 }

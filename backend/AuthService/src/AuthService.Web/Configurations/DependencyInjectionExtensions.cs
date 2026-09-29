@@ -13,10 +13,16 @@ public static class DependencyInjectionExtensions
 
     extension(IServiceCollection services)
     {
-        public IServiceCollection AddDependency(IConfiguration configuration)
+        public IServiceCollection AddDependency(
+            IConfiguration configuration,
+            IHostEnvironment environment)
         {
             services.AddAuthorization();
             services.AddCurrentUser();
+
+            // Инфраструктура rate limiting: UseRateLimiter() в pipeline требует AddRateLimiter().
+            // Политики для публичных OIDC endpoints (/connect/*) добавим позже.
+            services.AddRateLimiter(_ => { });
 
             services.AddFrameworkCors(configuration);
             services.AddOpenApiSpec(Constants.SERVICE_NAME, "v1");
@@ -25,6 +31,7 @@ public static class DependencyInjectionExtensions
 
             services.AddCore(configuration);
             services.AddInfrastructurePostgres(configuration);
+            services.AddAuthServiceOidcServer(configuration, environment);
 
             return services;
         }

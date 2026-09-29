@@ -2,6 +2,7 @@
 
 import { useIsHydrated } from "@/src/shared/lib/use-is-hydrated";
 import { routes } from "@/src/shared/routes";
+import { revokeToken } from "@/src/shared/auth/oidc";
 import {
   sessionSelectors,
   useSessionStore,
@@ -17,7 +18,7 @@ export default function DashboardPage() {
   const hydrated = useIsHydrated();
   const isAuthenticated = useSessionStore(sessionSelectors.isAuthenticated);
   const displayName = useSessionStore(sessionSelectors.displayName);
-  const account = useSessionStore(sessionSelectors.account);
+  const user = useSessionStore(sessionSelectors.user);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
@@ -33,7 +34,15 @@ export default function DashboardPage() {
     );
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const refreshToken = useSessionStore.getState().refreshToken;
+    if (refreshToken) {
+      try {
+        await revokeToken(refreshToken);
+      } catch {
+        // Даже если отзыв не прошёл — локально выходим.
+      }
+    }
     useSessionStore.getState().clear();
     router.replace(routes.login);
   };
@@ -51,18 +60,18 @@ export default function DashboardPage() {
               {displayName}
             </dd>
           </div>
-          {account && (
+          {user && (
             <>
               <div className="flex justify-between gap-4">
                 <dt className="text-sm text-slate-500">Email</dt>
                 <dd className="text-sm font-medium text-slate-900">
-                  {account.email}
+                  {user.email}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-sm text-slate-500">ID аккаунта</dt>
                 <dd className="text-sm font-medium break-all text-slate-900">
-                  {account.accountId}
+                  {user.sub}
                 </dd>
               </div>
             </>
@@ -76,7 +85,7 @@ export default function DashboardPage() {
           >
             Мой профиль
           </Link>
-          <Button variant="ghost" onClick={handleLogout}>
+          <Button variant="ghost" onClick={() => void handleLogout()}>
             Выйти
           </Button>
         </div>
