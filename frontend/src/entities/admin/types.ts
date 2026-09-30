@@ -23,11 +23,4 @@ export type AdminUsersRequest = {
   search: string;
 };
 
-// Зеркалит Shared.SharedKernel.Responses.PaginationResponse<T>.
-export type PaginationResponse<T> = {
-  items: T[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-};
+export type { PaginationResponse } from "@/src/shared/api/types";

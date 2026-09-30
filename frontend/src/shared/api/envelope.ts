@@ -22,3 +22,12 @@ export function unwrapEnvelope<T>(envelope: Envelope<T>): T {
 
   return envelope.result;
 }
+
+// Для команд без результата (join/leave/delete/kick): проверяем только ошибку.
+export function assertEnvelopeSuccess(envelope: Envelope): void {
+  if (envelope.isError) {
+    throw new EnvelopeError(
+      envelope.error ?? { messages: [], type: ErrorType.FAILURE },
+    );
+  }
+}

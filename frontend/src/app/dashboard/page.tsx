@@ -69,8 +69,14 @@ export default function DashboardPage() {
 
         <section className="flex flex-wrap gap-3">
           <Link
-            href={routes.profile}
+            href={routes.clans}
             className="inline-flex h-9 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+          >
+            Кланы
+          </Link>
+          <Link
+            href={routes.profile}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
           >
             Мой профиль
           </Link>

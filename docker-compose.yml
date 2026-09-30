@@ -41,6 +41,48 @@ services:
         condition: service_completed_successfully
     restart: always
 
+  clan-migrator:
+    container_name: clan-service-migrator
+    build:
+      context: ./backend
+      dockerfile: ClanService/Dockerfile
+      target: migrations
+      args:
+        NUGET_USERNAME: ${NUGET_USERNAME}
+      secrets:
+        - nuget_password
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ConnectionStrings__ClanDb=${ConnectionStrings__ClanDb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["--connection", "${ConnectionStrings__ClanDb}"]
+    restart: "no"
+
+  clan-service:
+    container_name: clan-service
+    build:
+      context: ./backend
+      dockerfile: ClanService/Dockerfile
+      args:
+        NUGET_USERNAME: ${NUGET_USERNAME}
+      secrets:
+        - nuget_password
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
+      - ConnectionStrings__ClanDb=${ConnectionStrings__ClanDb}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      clan-migrator:
+        condition: service_completed_successfully
+    restart: always
+
   postgres:
     container_name: db-postgres
     image: postgres:17-alpine

@@ -28,6 +28,7 @@ export function SiteHeader() {
   const navItems: NavItem[] = isAuthenticated
     ? [
         { href: routes.dashboard, label: "Панель" },
+        { href: routes.clans, label: "Кланы" },
         { href: routes.profile, label: "Профиль" },
         ...(isStaff(userRoles)
           ? [{ href: routes.admin, label: "Админ-панель" }]

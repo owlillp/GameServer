@@ -27,7 +27,7 @@ grant_type=password
 client_id=gameserver-unity
 username=<email|username>
 password=<пароль>
-scope=openid profile email offline_access auth
+scope=openid profile email offline_access auth clans
 ```
 
 Ответ: `access_token` (15 мин), `refresh_token` (30 дней), `token_type=Bearer`.
@@ -85,6 +85,9 @@ Unity                        Системный браузер                  
 ```
 
 Клиент получает grants `password`, `authorization_code`, `refresh_token`.
+Скоупы в токене определяют аудитории: `auth` → `auth-service`, `clans` →
+`clan-service`; с одним access-токеном можно ходить и в AuthService
+(`/auth/profile`), и в ClanService (`/clans`).
 Меняете порт/схему — обновите и клиент, и сервер.
 
 ## Что должен реализовать Unity-клиент

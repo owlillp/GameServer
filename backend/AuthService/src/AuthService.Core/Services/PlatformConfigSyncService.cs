@@ -13,7 +13,8 @@ public sealed class PlatformConfigSyncService(
     public async Task SyncAsync(OpenIddictOptions options, CancellationToken cancellationToken)
     {
         await SeedRolesAsync();
-        await UpsertAuthScopeAsync(cancellationToken);
+        await UpsertScopeAsync(OidcScopes.AUTH, "AuthService API Access", OidcScopes.AUTH_RESOURCE, cancellationToken);
+        await UpsertScopeAsync(OidcScopes.CLANS, "ClanService API Access", OidcScopes.CLANS_RESOURCE, cancellationToken);
         await UpsertPublicClientAsync(options.Clients.Web, allowPasswordGrant: false, cancellationToken);
         await UpsertPublicClientAsync(options.Clients.Game, allowPasswordGrant: true, cancellationToken);
         await UpsertServiceClientAsync(options.Clients.Service, cancellationToken);
@@ -30,13 +31,17 @@ public sealed class PlatformConfigSyncService(
         }
     }
 
-    private async Task UpsertAuthScopeAsync(CancellationToken cancellationToken)
+    private async Task UpsertScopeAsync(
+        string name,
+        string displayName,
+        string resource,
+        CancellationToken cancellationToken)
     {
         var descriptor = new OpenIddictScopeDescriptor
         {
-            Name = OidcScopes.AUTH,
-            DisplayName = "AuthService API Access",
-            Resources = { OidcScopes.AUTH_RESOURCE },
+            Name = name,
+            DisplayName = displayName,
+            Resources = { resource },
         };
 
         object? existing = await scopeManager.FindByNameAsync(descriptor.Name, cancellationToken);
@@ -81,6 +86,7 @@ public sealed class PlatformConfigSyncService(
                 OpenIddictConstants.Permissions.Scopes.Profile,
                 OpenIddictConstants.Permissions.Scopes.Roles,
                 OpenIddictConstants.Permissions.Prefixes.Scope + OidcScopes.AUTH,
+                OpenIddictConstants.Permissions.Prefixes.Scope + OidcScopes.CLANS,
             },
         };
 

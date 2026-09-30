@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: routes.admin, label: "Обзор" },
+  { href: routes.adminClans, label: "Кланы" },
   { href: routes.adminUsers, label: "Пользователи" },
 ] as const;
 

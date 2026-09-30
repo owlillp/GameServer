@@ -11,6 +11,10 @@ public static class OidcScopes
 
     public const string AUTH_RESOURCE = "auth-service";
 
+    public const string CLANS = "clans";
+
+    public const string CLANS_RESOURCE = "clan-service";
+
     public static IReadOnlyList<string> All { get; } =
     [
         OPEN_ID,
@@ -18,5 +22,6 @@ public static class OidcScopes
         EMAIL,
         OFFLINE_ACCESS,
         AUTH,
+        CLANS,
     ];
 }
