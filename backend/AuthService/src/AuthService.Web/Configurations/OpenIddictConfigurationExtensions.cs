@@ -1,16 +1,17 @@
 using System.Security.Cryptography;
 using System.Text;
 using AuthService.Core.Configurations;
+using AuthService.Core.Features.Connect;
 using AuthService.Infrastructure.Postgres;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
 
 namespace AuthService.Web.Configurations;
 
-public static class OidcServerConfigurationExtensions
+public static class OpenIddictConfigurationExtensions
 {
-    public static IServiceCollection AddAuthServiceOidcServer(
+    public static IServiceCollection AddAuthServiceOpenIddict(
         this IServiceCollection services,
         IConfiguration configuration,
         IWebHostEnvironment environment)
@@ -18,26 +19,34 @@ public static class OidcServerConfigurationExtensions
         services.AddOptions<OpenIddictOptions>()
             .Bind(configuration.GetSection(OpenIddictOptions.SECTION_NAME))
             .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<OpenIddictOptions>, OpenIddictOptionsValidator>();
 
-        var openIdDictOptions = configuration
+        services.Configure<SigningKeyOptions>(configuration.GetSection(SigningKeyOptions.SECTION_NAME));
+        services.AddOptions<AuthServiceOptions>().Bind(configuration.GetSection(AuthServiceOptions.SECTION_NAME));
+
+        OpenIddictOptions openIddictOptions = configuration
             .GetSection(OpenIddictOptions.SECTION_NAME)
             .Get<OpenIddictOptions>() ?? new OpenIddictOptions();
+
+        SigningKeyOptions signingKeyOptions = configuration
+            .GetSection(SigningKeyOptions.SECTION_NAME)
+            .Get<SigningKeyOptions>() ?? new SigningKeyOptions();
 
         services.AddOpenIddict()
             .AddCore(options => options
                 .UseEntityFrameworkCore()
                 .UseDbContext<AuthServiceDbContext>()
-                .ReplaceDefaultEntities<Guid>()
             ).AddServer(options =>
             {
-                if (!string.IsNullOrWhiteSpace(openIdDictOptions.Issuer))
+                if (!string.IsNullOrWhiteSpace(openIddictOptions.Issuer))
                 {
-                    options.SetIssuer(new Uri(openIdDictOptions.Issuer));
+                    options.SetIssuer(new Uri(openIddictOptions.Issuer));
                 }
 
                 options.AllowAuthorizationCodeFlow();
                 options.AllowRefreshTokenFlow();
                 options.AllowClientCredentialsFlow();
+                options.AllowPasswordFlow();
 
                 options.RequireProofKeyForCodeExchange();
                 options.DisableAccessTokenEncryption();
@@ -46,26 +55,21 @@ public static class OidcServerConfigurationExtensions
                 options.SetTokenEndpointUris(ConnectConstants.TOKEN_ENDPOINT);
                 options.SetRevocationEndpointUris(ConnectConstants.REVOKE_ENDPOINT);
                 options.SetUserInfoEndpointUris(ConnectConstants.USER_INFO_ENDPOINT);
+                options.SetEndSessionEndpointUris(ConnectConstants.END_SESSION_ENDPOINT);
 
-                options.RegisterScopes(
-                    OpenIddictConstants.Scopes.OpenId,
-                    OpenIddictConstants.Scopes.Profile,
-                    OpenIddictConstants.Scopes.Email,
-                    OpenIddictConstants.Scopes.OfflineAccess,
-                    OpenIddictConstants.Scopes.Roles,
-                    ConnectConstants.Scopes.OTHER_SCOPE);
+                options.RegisterScopes([.. OidcScopes.All]);
 
-                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(openIdDictOptions.AccessTokenLifetimeMinutes));
-                options.SetRefreshTokenLifetime(TimeSpan.FromDays(openIdDictOptions.RefreshTokenLifetimeDays));
-
+                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(openIddictOptions.AccessTokenLifetimeMinutes));
+                options.SetRefreshTokenLifetime(TimeSpan.FromDays(openIddictOptions.RefreshTokenLifetimeDays));
                 options.SetRefreshTokenReuseLeeway(TimeSpan.Zero);
 
-                AddSigningKeys(options, environment, signingKeys);
+                AddSigningKeys(options, environment, signingKeyOptions);
 
                 var aspNetCore = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough()
-                    .EnableUserInfoEndpointPassthrough();
+                    .EnableUserInfoEndpointPassthrough()
+                    .EnableEndSessionEndpointPassthrough();
 
                 if (IsLocalInsecureEnvironment(environment))
                 {
@@ -84,7 +88,7 @@ public static class OidcServerConfigurationExtensions
             options.DefaultChallengeScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
         });
 
-        services.AddHostedService<OpenIddictClientSeeder>();
+        services.AddHostedService<OpenIddictSeeder>();
 
         return services;
     }
@@ -95,32 +99,31 @@ public static class OidcServerConfigurationExtensions
     private static void AddSigningKeys(
         OpenIddictServerBuilder builder,
         IWebHostEnvironment environment,
-        SigningKeysOptions keys)
+        SigningKeyOptions keys)
     {
-        string? signingPem = keys.SigningKeyBase64;
-        string? encryptionPem = keys.EncryptionKeyBase64;
+        if (keys.IsConfigured)
+        {
+            builder.AddSigningKey(ImportRsaKey(keys.SigningKeyBase64!));
+            builder.AddEncryptionKey(ImportRsaKey(keys.EncryptionKeyBase64!));
+            return;
+        }
 
-        if (!string.IsNullOrWhiteSpace(signingPem) && !string.IsNullOrWhiteSpace(encryptionPem))
+        if (environment.IsProduction())
         {
-            builder.AddSigningKey(ImportRsaKey(signingPem));
-            builder.AddEncryptionKey(ImportRsaKey(encryptionPem));
+            throw new InvalidOperationException(
+                "Production signing/encryption keys are required. "
+                + "Set SigningKeys:SigningKeyBase64 and SigningKeys:EncryptionKeyBase64.");
         }
-        else if(environment.IsProduction())
-        {
-            throw new InvalidOperationException("Production signing/encryption keys are required");
-        }
-        else
-        {
-            builder.AddDevelopmentSigningCertificate();
-            builder.AddDevelopmentEncryptionCertificate();
-        }
+
+        builder.AddDevelopmentSigningCertificate();
+        builder.AddDevelopmentEncryptionCertificate();
     }
 
     private static RsaSecurityKey ImportRsaKey(string base64Pem)
     {
         byte[] pem = Convert.FromBase64String(base64Pem);
-        var rsa = RSA.Create();
+        RSA rsa = RSA.Create();
         rsa.ImportFromPem(Encoding.UTF8.GetString(pem));
-        return  new RsaSecurityKey(rsa);
+        return new RsaSecurityKey(rsa);
     }
 }

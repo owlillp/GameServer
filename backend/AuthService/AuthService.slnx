@@ -11,4 +11,5 @@
   <Project Path="src/AuthService.Domain/AuthService.Domain.csproj" />
   <Project Path="src/AuthService.Infrastructure.Postgres/AuthService.Infrastructure.Postgres.csproj" />
   <Project Path="src/AuthService.Web/AuthService.Web.csproj" />
+  <Project Path="tests/AuthService.IntegrationTests/AuthService.IntegrationTests.csproj" />
 </Solution>

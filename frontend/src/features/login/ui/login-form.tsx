@@ -9,7 +9,13 @@ import { useForm } from "react-hook-form";
 import { loginSchema, type LoginFormValues } from "../model/schema";
 import { useLogin } from "../model/use-login";
 
-export function LoginForm() {
+export function LoginForm({
+  returnTo = "",
+  returnUrl,
+}: {
+  returnTo?: string;
+  returnUrl?: string | null;
+}) {
   const {
     register,
     handleSubmit,
@@ -20,7 +26,7 @@ export function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  const loginMutation = useLogin();
+  const loginMutation = useLogin({ returnTo, returnUrl });
 
   const onSubmit = handleSubmit(async (values) => {
     try {

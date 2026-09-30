@@ -1,0 +1,153 @@
+using AuthService.Core.Configurations;
+using AuthService.Domain;
+using Microsoft.AspNetCore.Identity;
+using OpenIddict.Abstractions;
+
+namespace AuthService.Core.Services;
+
+public sealed class PlatformConfigSyncService(
+    RoleManager<Role> roleManager,
+    IOpenIddictApplicationManager applicationManager,
+    IOpenIddictScopeManager scopeManager)
+{
+    public async Task SyncAsync(OpenIddictOptions options, CancellationToken cancellationToken)
+    {
+        await SeedRolesAsync();
+        await UpsertAuthScopeAsync(cancellationToken);
+        await UpsertPublicClientAsync(options.Clients.Web, allowPasswordGrant: false, cancellationToken);
+        await UpsertPublicClientAsync(options.Clients.Game, allowPasswordGrant: true, cancellationToken);
+        await UpsertServiceClientAsync(options.Clients.Service, cancellationToken);
+    }
+
+    private async Task SeedRolesAsync()
+    {
+        foreach (string roleName in AuthRoles.All)
+        {
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new Role(roleName));
+            }
+        }
+    }
+
+    private async Task UpsertAuthScopeAsync(CancellationToken cancellationToken)
+    {
+        var descriptor = new OpenIddictScopeDescriptor
+        {
+            Name = OidcScopes.AUTH,
+            DisplayName = "AuthService API Access",
+            Resources = { OidcScopes.AUTH_RESOURCE },
+        };
+
+        object? existing = await scopeManager.FindByNameAsync(descriptor.Name, cancellationToken);
+        if (existing is null)
+        {
+            await scopeManager.CreateAsync(descriptor, cancellationToken);
+        }
+        else
+        {
+            await scopeManager.UpdateAsync(existing, descriptor, cancellationToken);
+        }
+    }
+
+    private async Task UpsertPublicClientAsync(
+        OpenIddictClientOptions client,
+        bool allowPasswordGrant,
+        CancellationToken cancellationToken)
+    {
+        if (!client.IsConfigured)
+        {
+            return;
+        }
+
+        var descriptor = new OpenIddictApplicationDescriptor
+        {
+            ClientId = client.ClientId,
+            DisplayName = client.DisplayName,
+            ClientType = client.IsPublic
+                ? OpenIddictConstants.ClientTypes.Public
+                : OpenIddictConstants.ClientTypes.Confidential,
+            ConsentType = OpenIddictConstants.ConsentTypes.Implicit,
+            Permissions =
+            {
+                OpenIddictConstants.Permissions.Endpoints.Authorization,
+                OpenIddictConstants.Permissions.Endpoints.Token,
+                OpenIddictConstants.Permissions.Endpoints.EndSession,
+                OpenIddictConstants.Permissions.Endpoints.Revocation,
+                OpenIddictConstants.Permissions.GrantTypes.AuthorizationCode,
+                OpenIddictConstants.Permissions.GrantTypes.RefreshToken,
+                OpenIddictConstants.Permissions.ResponseTypes.Code,
+                OpenIddictConstants.Permissions.Scopes.Email,
+                OpenIddictConstants.Permissions.Scopes.Profile,
+                OpenIddictConstants.Permissions.Scopes.Roles,
+                OpenIddictConstants.Permissions.Prefixes.Scope + OidcScopes.AUTH,
+            },
+        };
+
+        if (!client.IsPublic)
+        {
+            descriptor.ClientSecret = client.ClientSecret;
+        }
+
+        // In-game логин (email+пароль прямо в клиенте) только для game-клиента;
+        // веб остаётся на authorization code + cookie.
+        if (allowPasswordGrant)
+        {
+            descriptor.Permissions.Add(OpenIddictConstants.Permissions.GrantTypes.Password);
+        }
+
+        foreach (string redirectUri in client.RedirectUris)
+        {
+            descriptor.RedirectUris.Add(new Uri(redirectUri));
+        }
+
+        foreach (string postLogoutRedirectUri in client.PostLogoutRedirectUris)
+        {
+            descriptor.PostLogoutRedirectUris.Add(new Uri(postLogoutRedirectUri));
+        }
+
+        await UpsertApplicationAsync(client.ClientId, descriptor, cancellationToken);
+    }
+
+    private async Task UpsertServiceClientAsync(
+        OpenIddictClientOptions client,
+        CancellationToken cancellationToken)
+    {
+        if (!client.IsConfigured)
+        {
+            return;
+        }
+
+        var descriptor = new OpenIddictApplicationDescriptor
+        {
+            ClientId = client.ClientId,
+            ClientSecret = client.ClientSecret,
+            DisplayName = client.DisplayName,
+            ClientType = OpenIddictConstants.ClientTypes.Confidential,
+            Permissions =
+            {
+                OpenIddictConstants.Permissions.Endpoints.Token,
+                OpenIddictConstants.Permissions.GrantTypes.ClientCredentials,
+                OpenIddictConstants.Permissions.Prefixes.Scope + OidcScopes.AUTH,
+            },
+        };
+
+        await UpsertApplicationAsync(client.ClientId, descriptor, cancellationToken);
+    }
+
+    private async Task UpsertApplicationAsync(
+        string clientId,
+        OpenIddictApplicationDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        object? existing = await applicationManager.FindByClientIdAsync(clientId, cancellationToken);
+        if (existing is null)
+        {
+            await applicationManager.CreateAsync(descriptor, cancellationToken);
+        }
+        else
+        {
+            await applicationManager.UpdateAsync(existing, descriptor, cancellationToken);
+        }
+    }
+}

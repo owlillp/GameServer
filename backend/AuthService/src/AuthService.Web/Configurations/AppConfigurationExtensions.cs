@@ -1,5 +1,5 @@
 ﻿using Scalar.AspNetCore;
-using Shared.Framework.Authentication;
+using Shared.Framework.Authentication.UserScope;
 using Shared.Framework.Cors;
 using Shared.Framework.Endpoints;
 using Shared.Framework.Logging;
@@ -9,17 +9,18 @@ namespace AuthService.Web.Configurations;
 
 public static class AppConfigurationExtensions
 {
-    public static IApplicationBuilder Configure(this WebApplication app, string[] args)
+    public static IApplicationBuilder Configure(this WebApplication app)
     {
         app.UseRouting();
+        app.ConfigureCors();
         app.UseRateLimiter();
         app.UseSerilogHttpRequestLogging();
         app.UseExceptionMiddleware();
         app.UseRequestCorrelationId();
 
         app.UseAuthentication();
+        app.UseUserScopedData();
         app.UseAuthorization();
-        app.UseCurrentUser();
 
         if (!app.Environment.IsProduction())
         {
@@ -27,7 +28,6 @@ public static class AppConfigurationExtensions
             app.MapScalarApiReference();
         }
 
-        app.ConfigureCors();
         app.MapHealthChecks("/health");
         app.MapEndpoints();
 

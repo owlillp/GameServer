@@ -10,7 +10,7 @@ public sealed class ProfileEndpoint : IEndpoint
 {
     public void MapEndpoint(IEndpointRouteBuilder app) =>
         app.MapGet("/auth/profile",
-            [Authorize(AuthenticationSchemes = "Identity.Application,OpenIddict.Validation.AspNetCore")]
+            [Authorize]
             async Task<EndpointResult<ProfileDto>> (
                     [FromServices] GetMyProfileHandler handler,
                     CancellationToken ct) =>

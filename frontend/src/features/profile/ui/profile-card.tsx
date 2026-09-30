@@ -2,7 +2,7 @@
 
 import { profileQueryOptions } from "@/src/entities/auth";
 import { ErrorType, isEnvelopeError } from "@/src/shared/api/errors";
-import { revokeToken } from "@/src/shared/auth/oidc";
+import { useLogout } from "@/src/features/logout";
 import { useIsHydrated } from "@/src/shared/lib/use-is-hydrated";
 import { routes } from "@/src/shared/routes";
 import {
@@ -14,12 +14,11 @@ import { Button } from "@/src/shared/ui/button";
 import { Spinner } from "@/src/shared/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export function ProfileCard() {
-  const router = useRouter();
-  const hydrated = useIsHydrated();
   const roles = useSessionStore(sessionSelectors.roles);
+  const { logout, isPending } = useLogout();
+  const hydrated = useIsHydrated();
   const { data, isLoading, error, refetch, isFetching } = useQuery(
     profileQueryOptions(),
   );
@@ -58,19 +57,6 @@ export function ProfileCard() {
   }
 
   if (!data) return null;
-
-  const handleLogout = async () => {
-    const refreshToken = useSessionStore.getState().refreshToken;
-    if (refreshToken) {
-      try {
-        await revokeToken(refreshToken);
-      } catch {
-        // Даже если отзыв не прошёл — локально выходим.
-      }
-    }
-    useSessionStore.getState().clear();
-    router.replace(routes.login);
-  };
 
   return (
     <div className="space-y-6">
@@ -141,8 +127,12 @@ export function ProfileCard() {
         >
           На главную
         </Link>
-        <Button variant="ghost" onClick={() => void handleLogout()}>
-          Выйти
+        <Button
+          variant="ghost"
+          onClick={() => void logout()}
+          disabled={isPending}
+        >
+          {isPending ? "Выходим..." : "Выйти"}
         </Button>
       </div>
     </div>

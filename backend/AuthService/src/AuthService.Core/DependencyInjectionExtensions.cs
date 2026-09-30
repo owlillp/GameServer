@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Shared.Core.Abstractions;
-using Shared.Framework.Authorization;
+using Shared.Framework.Authentication;
 
 namespace AuthService.Core;
 
@@ -23,8 +23,6 @@ public static class DependencyInjectionExtensions
             services.AddHttpContextAccessor();
 
             services.AddIdentity(configuration);
-
-            services.AddPermissionAuthorization(RolePermissions.Map, "");
 
             return services;
         }
@@ -56,6 +54,12 @@ public static class DependencyInjectionExtensions
                 options.User.RequireUniqueEmail = settings.User.RequireUniqueEmail;
 
                 options.SignIn.RequireConfirmedEmail = settings.SignIn.RequireConfirmedEmail;
+
+                options.ClaimsIdentity.UserIdClaimType = AuthClaimTypes.SUB;
+                options.ClaimsIdentity.UserNameClaimType = AuthClaimTypes.NAME;
+                options.ClaimsIdentity.EmailClaimType = AuthClaimTypes.EMAIL;
+                options.ClaimsIdentity.RoleClaimType = AuthClaimTypes.ROLE;
+                options.ClaimsIdentity.SecurityStampClaimType = AuthClaimTypes.SECURITY_STAMP;
             }).AddDefaultTokenProviders();
 
             services.ConfigureApplicationCookie(options =>

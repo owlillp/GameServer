@@ -2,12 +2,26 @@ import { authApi } from "@/src/entities/auth";
 import { startLogin } from "@/src/shared/auth/oidc";
 import { useMutation } from "@tanstack/react-query";
 
-// Логин: /auth/login ставит Identity-cookie, затем уходим на /connect/authorize.
-export function useLogin() {
+type UseLoginOptions = {
+  // Внутренний маршрут после OIDC-редиректа; пусто → role-based домашний.
+  returnTo?: string;
+  // Внешний authorize URL (например, из Unity-флоу) — после логина уводим
+  // браузер прямо на него.
+  returnUrl?: string | null;
+};
+
+// Логин: /auth/login ставит Identity-cookie, затем либо возвращаемся на
+// исходный authorize URL, либо уходим в стандартный OIDC-флоу приложения.
+export function useLogin({ returnTo = "", returnUrl }: UseLoginOptions = {}) {
   const mutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: async () => {
-      await startLogin("/profile");
+      if (returnUrl) {
+        window.location.assign(returnUrl);
+        return;
+      }
+
+      await startLogin(returnTo);
     },
   });
 

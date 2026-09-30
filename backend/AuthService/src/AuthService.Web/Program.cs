@@ -12,11 +12,12 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     builder.AddSerilogLogging(Constants.SERVICE_NAME);
+
     builder.Services.AddDependency(builder.Configuration, builder.Environment);
 
     var app = builder.Build();
 
-    app.Configure(args);
+    app.Configure();
 
     await app.RunAsync();
 }

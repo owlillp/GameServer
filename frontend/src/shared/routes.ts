@@ -5,6 +5,8 @@ export const routes = {
   profile: "/profile",
   dashboard: "/dashboard",
   players: "/players",
+  admin: "/admin",
+  adminUsers: "/admin/users",
 } as const;
 
 export type RouteKey = keyof typeof routes;

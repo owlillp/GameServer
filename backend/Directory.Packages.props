@@ -30,14 +30,16 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.3" />
+    <PackageVersion Include="OpenIddict.Abstractions" Version="7.6.0" />
     <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="7.6.0" />
     <PackageVersion Include="OpenIddict.Server.AspNetCore" Version="7.6.0" />
     <PackageVersion Include="OpenIddict.Validation.AspNetCore" Version="7.6.0" />
     <PackageVersion Include="OpenIddict.Validation.ServerIntegration" Version="7.6.0" />
     <!-- Shared -->
     <PackageVersion Include="owlip.shared.core" Version="0.0.1" />
-    <PackageVersion Include="owlip.shared.framework" Version="0.0.7" />
+    <PackageVersion Include="owlip.shared.framework" Version="0.0.9" />
     <PackageVersion Include="owlip.shared.messaging" Version="0.0.1" />
     <PackageVersion Include="Owlip.Shared.SharedKernel" Version="0.0.1" />
     <!-- Logging (Serilog) -->

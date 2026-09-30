@@ -3,20 +3,24 @@ using AuthService.Core.Abstractions;
 using CSharpFunctionalExtensions;
 using Microsoft.EntityFrameworkCore;
 using Shared.Core.Abstractions;
-using Shared.Framework.Authentication;
+using Shared.Framework.Authentication.UserScope;
 using Shared.SharedKernel.Errors;
 
 namespace AuthService.Core.Features.Auth.Queries.GetMyProfile;
 
 public sealed class GetMyProfileHandler(
     IReadDbContext readDbContext,
-    CurrentUser currentUser) : IQueryHandlerWithResult<ProfileDto, GetMyProfileQuery>
+    UserScopedData currentUser) : IQueryHandlerWithResult<ProfileDto, GetMyProfileQuery>
 {
     public async Task<Result<ProfileDto, Error>> Handle(
         GetMyProfileQuery query,
         CancellationToken cancellationToken = new ())
     {
-        var userId = currentUser.RequireId();
+        Guid? userId = currentUser.Id;
+        if (userId is null)
+        {
+            return Error.Authentication("authentication.required", "User identity is not available");
+        }
 
         var account = await readDbContext
             .AccountsRead

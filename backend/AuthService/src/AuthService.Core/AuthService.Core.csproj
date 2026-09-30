@@ -7,13 +7,18 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\AuthService.Contracts\AuthService.Contracts.csproj" />
       <ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+      <PackageReference Include="OpenIddict.Abstractions" />
+      <PackageReference Include="OpenIddict.Server.AspNetCore" />
       <PackageReference Include="owlip.shared.core" />
       <PackageReference Include="owlip.shared.framework" />
       <PackageReference Include="owlip.shared.messaging" />

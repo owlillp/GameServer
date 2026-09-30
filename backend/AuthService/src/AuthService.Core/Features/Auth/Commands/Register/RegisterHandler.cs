@@ -40,6 +40,12 @@ public sealed class RegisterHandler(
             return MapIdentityErrors(result);
         }
 
+        var roleResult = await userManager.AddToRoleAsync(account, AuthRoles.USER);
+        if (!roleResult.Succeeded)
+        {
+            return MapIdentityErrors(roleResult);
+        }
+
         var commitResult = await transactionManager.CommitTransactionAsync(cancellationToken);
         if (commitResult.IsFailure)
         {

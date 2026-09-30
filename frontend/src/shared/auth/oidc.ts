@@ -46,7 +46,8 @@ async function s256(verifier: string): Promise<string> {
 }
 
 // Строит authorize URL, сохраняет verifier/state и уводит браузер.
-export async function startLogin(returnTo = "/profile"): Promise<void> {
+// returnTo — необязательный маршрут после входа; пусто → role-based домашний.
+export async function startLogin(returnTo = ""): Promise<void> {
   const verifier = randomUrlSafe(32);
   const state = randomUrlSafe(16);
   const challenge = await s256(verifier);

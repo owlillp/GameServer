@@ -11,7 +11,11 @@ import { useForm } from "react-hook-form";
 import { registerSchema, type RegisterFormValues } from "../model/schema";
 import { useRegister } from "../model/use-register";
 
-export function RegisterForm() {
+export function RegisterForm({
+  returnUrl = null,
+}: {
+  returnUrl?: string | null;
+}) {
   const router = useRouter();
 
   const {
@@ -29,8 +33,12 @@ export function RegisterForm() {
   const onSubmit = handleSubmit(async (values) => {
     try {
       await registerMutation.register(values);
-      // После регистрации токен не выдаётся — отправляем на вход.
-      router.push(routes.login);
+      // После регистрации токен не выдаётся — отправляем на вход,
+      // сохраняя внешний returnUrl (например, из Unity-флоу).
+      const loginHref = returnUrl
+        ? `${routes.login}?returnUrl=${encodeURIComponent(returnUrl)}`
+        : routes.login;
+      router.push(loginHref);
     } catch {
       // Ошибка уже в registerMutation.error — отрисуем ниже.
     }

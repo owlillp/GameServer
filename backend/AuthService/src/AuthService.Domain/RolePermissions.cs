@@ -11,7 +11,7 @@ public static class RolePermissions
 
             [AuthRoles.ADMIN] = AuthPermissions.All,
 
-            //[PlatformRoles.SERVICE_ACCOUNT] = AuthPermissions.All,
+            [AuthRoles.SERVICE] = [],
         };
 
     public static IReadOnlyList<string> ForRole(string role)
@@ -19,7 +19,7 @@ public static class RolePermissions
 
     public static IReadOnlyCollection<string> ForRoles(IEnumerable<string> roles)
     {
-        var permissions = new HashSet<string>();
+        var permissions = new HashSet<string>(StringComparer.Ordinal);
         foreach (string role in roles)
         {
             foreach (string permission in ForRole(role))
