@@ -37,7 +37,7 @@
     <PackageVersion Include="OpenIddict.Validation.ServerIntegration" Version="7.6.0" />
     <!-- Shared -->
     <PackageVersion Include="owlip.shared.core" Version="0.0.1" />
-    <PackageVersion Include="owlip.shared.framework" Version="0.0.5" />
+    <PackageVersion Include="owlip.shared.framework" Version="0.0.7" />
     <PackageVersion Include="owlip.shared.messaging" Version="0.0.1" />
     <PackageVersion Include="Owlip.Shared.SharedKernel" Version="0.0.1" />
     <!-- Logging (Serilog) -->

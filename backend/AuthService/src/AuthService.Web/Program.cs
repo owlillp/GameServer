@@ -18,8 +18,6 @@ try
 
     app.Configure(args);
 
-    await app.ApplyMigrationsAndSeedAsync();
-
     await app.RunAsync();
 }
 catch (HostAbortedException)

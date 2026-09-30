@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Shared.Core.Abstractions;
+using Shared.Framework.Authorization;
 
 namespace AuthService.Core;
 
@@ -22,6 +23,8 @@ public static class DependencyInjectionExtensions
             services.AddHttpContextAccessor();
 
             services.AddIdentity(configuration);
+
+            services.AddPermissionAuthorization(RolePermissions.Map, "");
 
             return services;
         }

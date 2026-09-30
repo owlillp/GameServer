@@ -11,50 +11,43 @@ namespace AuthService.Web.Endpoints.Oidc;
 
 public sealed class OidcUserInfoEndpoint : IEndpoint
 {
-    public void MapEndpoint(IEndpointRouteBuilder app) =>
-        app.MapGet("/connect/userinfo", HandleAsync);
+    public void MapEndpoint(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/" + ConnectConstants.USER_INFO_ENDPOINT, HandleAsync).AllowAnonymous();
+        app.MapPost("/" + ConnectConstants.USER_INFO_ENDPOINT, HandleAsync).AllowAnonymous();
+    }
 
     private static async Task<IResult> HandleAsync(
         HttpContext httpContext,
         UserManager<Account> userManager)
     {
-        var auth = await httpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
-        if (!auth.Succeeded || auth.Principal is null)
+        var authResult = await httpContext.AuthenticateAsync(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+        ClaimsPrincipal? principal = authResult.Principal;
+        if (!authResult.Succeeded || principal is null)
         {
-            return Challenge();
+            return Results.Challenge(authenticationSchemes: [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
         }
 
-        ClaimsPrincipal principal = auth.Principal;
-        string? subject = principal.GetClaim(OpenIddictConstants.Claims.Subject);
-
-        Account? account = Guid.TryParse(subject, out Guid id)
-            ? await userManager.FindByIdAsync(id.ToString())
+        string? userId = principal.GetClaim(OpenIddictConstants.Claims.Subject);
+        var user = userId != null
+            ? await userManager.FindByIdAsync(userId)
             : null;
 
-        if (account is null)
+        if (user is null)
         {
-            return Challenge();
+            return Results.Challenge(authenticationSchemes: [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
         }
 
-        var response = new Dictionary<string, object?>(StringComparer.Ordinal)
+        var roles = await userManager.GetRolesAsync(user);
+        var claims = new Dictionary<string, object>()
         {
-            ["sub"] = account.Id.ToString(),
+            [OpenIddictConstants.Claims.Subject] = user.Id.ToString(),
+            [OpenIddictConstants.Claims.Name] = user.UserName!,
+            [OpenIddictConstants.Claims.Email] = user.Email!,
+            [OpenIddictConstants.Claims.PreferredUsername] = user.UserName!,
+            [OpenIddictConstants.Claims.Role] = roles
         };
 
-        if (principal.HasScope(OidcScopes.PROFILE))
-        {
-            response["name"] = account.DisplayName ?? account.UserName;
-            response["preferred_username"] = account.UserName;
-        }
-
-        if (principal.HasScope(OidcScopes.EMAIL))
-        {
-            response["email"] = account.Email;
-        }
-
-        return Results.Ok(response);
+        return Results.Ok(claims);
     }
-
-    private static IResult Challenge() =>
-        Results.Challenge(authenticationSchemes: [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
 }

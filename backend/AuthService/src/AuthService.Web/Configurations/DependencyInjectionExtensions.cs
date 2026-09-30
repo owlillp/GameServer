@@ -15,7 +15,7 @@ public static class DependencyInjectionExtensions
     {
         public IServiceCollection AddDependency(
             IConfiguration configuration,
-            IHostEnvironment environment)
+            IWebHostEnvironment environment)
         {
             services.AddAuthorization();
             services.AddCurrentUser();

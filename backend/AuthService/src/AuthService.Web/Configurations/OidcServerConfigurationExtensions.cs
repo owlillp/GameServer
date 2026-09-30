@@ -1,8 +1,8 @@
-using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography;
+using System.Text;
 using AuthService.Core.Configurations;
 using AuthService.Infrastructure.Postgres;
-using AuthService.Infrastructure.Postgres.Seeding;
-using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
 using OpenIddict.Validation.AspNetCore;
 
@@ -13,65 +13,61 @@ public static class OidcServerConfigurationExtensions
     public static IServiceCollection AddAuthServiceOidcServer(
         this IServiceCollection services,
         IConfiguration configuration,
-        IHostEnvironment environment)
+        IWebHostEnvironment environment)
     {
-        services.AddSingleton<IValidateOptions<OidcSettings>, OidcOptionsValidator>();
-        services.AddOptions<OidcSettings>()
-            .Bind(configuration.GetSection(OidcSettings.SECTION_NAME))
+        services.AddOptions<OpenIddictOptions>()
+            .Bind(configuration.GetSection(OpenIddictOptions.SECTION_NAME))
             .ValidateOnStart();
 
-        var settings = configuration
-            .GetSection(OidcSettings.SECTION_NAME)
-            .Get<OidcSettings>() ?? new OidcSettings();
-
-        if (!settings.Enabled)
-        {
-            return services;
-        }
+        var openIdDictOptions = configuration
+            .GetSection(OpenIddictOptions.SECTION_NAME)
+            .Get<OpenIddictOptions>() ?? new OpenIddictOptions();
 
         services.AddOpenIddict()
-            .AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AuthServiceDbContext>())
-            .AddServer(options =>
+            .AddCore(options => options
+                .UseEntityFrameworkCore()
+                .UseDbContext<AuthServiceDbContext>()
+                .ReplaceDefaultEntities<Guid>()
+            ).AddServer(options =>
             {
-                options.SetIssuer(new Uri(settings.Issuer, UriKind.Absolute));
-                options.SetAuthorizationEndpointUris("/connect/authorize");
-                options.SetTokenEndpointUris("/connect/token");
-                options.SetRevocationEndpointUris("/connect/revoke");
-                options.SetUserInfoEndpointUris("/connect/userinfo");
+                if (!string.IsNullOrWhiteSpace(openIdDictOptions.Issuer))
+                {
+                    options.SetIssuer(new Uri(openIdDictOptions.Issuer));
+                }
 
                 options.AllowAuthorizationCodeFlow();
                 options.AllowRefreshTokenFlow();
                 options.AllowClientCredentialsFlow();
+
                 options.RequireProofKeyForCodeExchange();
-
-                options.RegisterScopes(
-                    OidcScopes.OPEN_ID,
-                    OidcScopes.PROFILE,
-                    OidcScopes.EMAIL,
-                    OidcScopes.OFFLINE_ACCESS,
-                    OidcScopes.AUTH);
-
-                options.RegisterClaims(
-                    OpenIddictConstants.Claims.Name,
-                    OpenIddictConstants.Claims.PreferredUsername,
-                    OpenIddictConstants.Claims.Email,
-                    OpenIddictConstants.Claims.EmailVerified,
-                    OpenIddictConstants.Claims.Role);
-
-                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(settings.AccessTokenLifetimeMinutes));
-                options.SetRefreshTokenLifetime(TimeSpan.FromDays(settings.RefreshTokenLifetimeDays));
-
-                options.SetRefreshTokenReuseLeeway(TimeSpan.Zero);
                 options.DisableAccessTokenEncryption();
 
-                ConfigureCertificates(options, settings, environment);
+                options.SetAuthorizationEndpointUris(ConnectConstants.AUTHORIZE_ENDPOINT);
+                options.SetTokenEndpointUris(ConnectConstants.TOKEN_ENDPOINT);
+                options.SetRevocationEndpointUris(ConnectConstants.REVOKE_ENDPOINT);
+                options.SetUserInfoEndpointUris(ConnectConstants.USER_INFO_ENDPOINT);
+
+                options.RegisterScopes(
+                    OpenIddictConstants.Scopes.OpenId,
+                    OpenIddictConstants.Scopes.Profile,
+                    OpenIddictConstants.Scopes.Email,
+                    OpenIddictConstants.Scopes.OfflineAccess,
+                    OpenIddictConstants.Scopes.Roles,
+                    ConnectConstants.Scopes.OTHER_SCOPE);
+
+                options.SetAccessTokenLifetime(TimeSpan.FromMinutes(openIdDictOptions.AccessTokenLifetimeMinutes));
+                options.SetRefreshTokenLifetime(TimeSpan.FromDays(openIdDictOptions.RefreshTokenLifetimeDays));
+
+                options.SetRefreshTokenReuseLeeway(TimeSpan.Zero);
+
+                AddSigningKeys(options, environment, signingKeys);
 
                 var aspNetCore = options.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
 
-                if (settings.DisableTransportSecurityRequirement)
+                if (IsLocalInsecureEnvironment(environment))
                 {
                     aspNetCore.DisableTransportSecurityRequirement();
                 }
@@ -79,7 +75,6 @@ public static class OidcServerConfigurationExtensions
             .AddValidation(options =>
             {
                 options.UseLocalServer();
-                options.AddAudiences(OidcScopes.AUTH_RESOURCE);
                 options.UseAspNetCore();
             });
 
@@ -89,39 +84,43 @@ public static class OidcServerConfigurationExtensions
             options.DefaultChallengeScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
         });
 
-        services.AddScoped<OidcServerSeeder>();
+        services.AddHostedService<OpenIddictClientSeeder>();
 
         return services;
     }
 
-    private static void ConfigureCertificates(
-        OpenIddictServerBuilder options,
-        OidcSettings settings,
-        IHostEnvironment environment)
+    private static bool IsLocalInsecureEnvironment(IHostEnvironment environment)
+        => environment.IsDevelopment() || environment.IsEnvironment("Docker");
+
+    private static void AddSigningKeys(
+        OpenIddictServerBuilder builder,
+        IWebHostEnvironment environment,
+        SigningKeysOptions keys)
     {
-        if (environment.IsEnvironment("Testing"))
+        string? signingPem = keys.SigningKeyBase64;
+        string? encryptionPem = keys.EncryptionKeyBase64;
+
+        if (!string.IsNullOrWhiteSpace(signingPem) && !string.IsNullOrWhiteSpace(encryptionPem))
         {
-            options.AddEphemeralEncryptionKey();
-            options.AddEphemeralSigningKey();
-            return;
+            builder.AddSigningKey(ImportRsaKey(signingPem));
+            builder.AddEncryptionKey(ImportRsaKey(encryptionPem));
         }
-
-        if (settings.UseDevelopmentCertificates)
+        else if(environment.IsProduction())
         {
-            options.AddDevelopmentEncryptionCertificate();
-            options.AddDevelopmentSigningCertificate();
-            return;
+            throw new InvalidOperationException("Production signing/encryption keys are required");
         }
+        else
+        {
+            builder.AddDevelopmentSigningCertificate();
+            builder.AddDevelopmentEncryptionCertificate();
+        }
+    }
 
-        var signingCertificate = X509CertificateLoader.LoadPkcs12FromFile(
-            settings.SigningCertificatePath,
-            settings.SigningCertificatePassword);
-
-        var encryptionCertificate = X509CertificateLoader.LoadPkcs12FromFile(
-            settings.EncryptionCertificatePath,
-            settings.EncryptionCertificatePassword);
-
-        options.AddSigningCertificate(signingCertificate);
-        options.AddEncryptionCertificate(encryptionCertificate);
+    private static RsaSecurityKey ImportRsaKey(string base64Pem)
+    {
+        byte[] pem = Convert.FromBase64String(base64Pem);
+        var rsa = RSA.Create();
+        rsa.ImportFromPem(Encoding.UTF8.GetString(pem));
+        return  new RsaSecurityKey(rsa);
     }
 }

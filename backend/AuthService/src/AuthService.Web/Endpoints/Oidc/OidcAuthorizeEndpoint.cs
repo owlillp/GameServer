@@ -3,6 +3,7 @@ using AuthService.Core.Configurations;
 using AuthService.Domain;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
@@ -15,50 +16,45 @@ namespace AuthService.Web.Endpoints.Oidc;
 
 public sealed class OidcAuthorizeEndpoint : IEndpoint
 {
-    public void MapEndpoint(IEndpointRouteBuilder app) =>
-        app.MapGet("/connect/authorize", HandleAsync);
+    public void MapEndpoint(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/" + ConnectConstants.AUTHORIZE_ENDPOINT, HandleAsync).AllowAnonymous();
+        app.MapPost("/" + ConnectConstants.AUTHORIZE_ENDPOINT, HandleAsync).AllowAnonymous();
+    }
 
     private static async Task<IResult> HandleAsync(
         HttpContext httpContext,
         UserManager<Account> userManager,
-        IOptions<OidcSettings> settings)
+        IOpenIddictScopeManager scopeManager,
+        IOptions<ConnectOptions> connectOptions)
     {
         var request = httpContext.GetOpenIddictServerRequest()
-            ?? throw new InvalidOperationException("OpenIddict authorization request is missing");
+                      ?? throw new InvalidOperationException("OpenID Connect request cannot be retrieved.");
 
-        var auth = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
-        if (!auth.Succeeded)
+        var authResult = await httpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
+        if (authResult.Principal?.Identity?.IsAuthenticated != true)
         {
-            string returnUrl = httpContext.Request.PathBase + httpContext.Request.Path + httpContext.Request.QueryString;
-            string frontendLoginUrl = settings.Value.FrontendLoginUrl;
+            string? loginUrl = connectOptions.Value.LoginUrl;
+            if(string.IsNullOrEmpty(loginUrl))
+                return Results.Unauthorized();
 
-            return string.IsNullOrEmpty(frontendLoginUrl)
-                ? Results.Unauthorized()
-                : Results.Redirect(QueryHelpers.AddQueryString(frontendLoginUrl, "returnUrl", returnUrl));
+            string returnUrl = httpContext.Request.GetEncodedUrl();
+            return Results.Redirect($"{loginUrl}?returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
 
-        string? userId = auth.Principal.FindFirstValue(AuthClaimTypes.SUB)
-            ?? auth.Principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        Account? account = Guid.TryParse(userId, out Guid id)
-            ? await userManager.FindByIdAsync(id.ToString())
-            : null;
-
-        if (account is null)
-        {
-            return Forbid(OpenIddictConstants.Errors.AccessDenied, "Пользователь не найден.");
-        }
-
-        IList<string> roles = await userManager.GetRolesAsync(account);
+        string userId = userManager.GetUserId(authResult.Principal)!;
+        var user = (await userManager.FindByIdAsync(userId))!;
+        var roles = await userManager.GetRolesAsync(user);
 
         var identity = new ClaimsIdentity(
-            authenticationType: "OpenIddict",
-            nameType: OpenIddictConstants.Claims.Name,
-            roleType: OpenIddictConstants.Claims.Role);
+            OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+            OpenIddictConstants.Claims.Name,
+            OpenIddictConstants.Claims.Role);
 
-        identity.SetClaim(OpenIddictConstants.Claims.Subject, account.Id.ToString());
-        identity.SetClaim(OpenIddictConstants.Claims.Name, account.DisplayName ?? account.UserName);
-        identity.SetClaim(OpenIddictConstants.Claims.PreferredUsername, account.UserName);
-        identity.SetClaim(OpenIddictConstants.Claims.Email, account.Email);
+        identity.SetClaim(OpenIddictConstants.Claims.Subject, user.Id.ToString());
+        identity.SetClaim(OpenIddictConstants.Claims.Name, user.UserName);
+        identity.SetClaim(OpenIddictConstants.Claims.Email, user.Email);
+        identity.SetClaim(OpenIddictConstants.Claims.PreferredUsername, user.UserName);
 
         foreach (string role in roles)
         {
@@ -66,7 +62,7 @@ public sealed class OidcAuthorizeEndpoint : IEndpoint
         }
 
         identity.SetScopes(request.GetScopes());
-        identity.SetResources(OidcScopes.GetResources(request.GetScopes()));
+        identity.SetResources(await scopeManager.ListResourcesAsync(request.GetScopes()).ToListAsync());
         identity.SetDestinations(GetDestinations);
 
         return Results.SignIn(
@@ -74,43 +70,14 @@ public sealed class OidcAuthorizeEndpoint : IEndpoint
             authenticationScheme: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
     }
 
-    private static IEnumerable<string> GetDestinations(Claim claim)
+    private static IEnumerable<string> GetDestinations(Claim claim) => claim.Type switch
     {
-        ClaimsIdentity identity = claim.Subject!;
-
-        if (claim.Type is OpenIddictConstants.Claims.Subject)
-        {
-            yield return OpenIddictConstants.Destinations.AccessToken;
-            yield return OpenIddictConstants.Destinations.IdentityToken;
-            yield break;
-        }
-
-        if (claim.Type is OpenIddictConstants.Claims.Name or OpenIddictConstants.Claims.PreferredUsername
-            && identity.HasScope(OidcScopes.PROFILE))
-        {
-            yield return OpenIddictConstants.Destinations.IdentityToken;
-            yield break;
-        }
-
-        if (claim.Type is OpenIddictConstants.Claims.Email && identity.HasScope(OidcScopes.EMAIL))
-        {
-            yield return OpenIddictConstants.Destinations.AccessToken;
-            yield return OpenIddictConstants.Destinations.IdentityToken;
-            yield break;
-        }
-
-        if (claim.Type is OpenIddictConstants.Claims.Role)
-        {
-            yield return OpenIddictConstants.Destinations.AccessToken;
-        }
-    }
-
-    private static IResult Forbid(string error, string description) =>
-        Results.Forbid(
-            new AuthenticationProperties(new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                [OpenIddictServerAspNetCoreConstants.Properties.Error] = error,
-                [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = description,
-            }),
-            [OpenIddictServerAspNetCoreDefaults.AuthenticationScheme]);
+        OpenIddictConstants.Claims.Subject
+            or OpenIddictConstants.Claims.Name
+            or OpenIddictConstants.Claims.Email
+            or OpenIddictConstants.Claims.PreferredUsername
+            or OpenIddictConstants.Claims.Role
+            => [OpenIddictConstants.Destinations.AccessToken, OpenIddictConstants.Destinations.IdentityToken],
+        _ => [OpenIddictConstants.Destinations.AccessToken],
+    };
 }

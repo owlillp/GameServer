@@ -17,6 +17,7 @@ public class AuthServiceDbContext(DbContextOptions<AuthServiceDbContext> options
         base.OnModelCreating(builder);
 
         builder.HasDefaultSchema(Constants.SCHEMA);
+        builder.UseOpenIddict<Guid>();
         builder.ApplyConfigurationsFromAssembly(typeof(AuthServiceDbContext).Assembly);
     }
 }
